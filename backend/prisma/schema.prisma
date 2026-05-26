@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tier {
+  FREE
+  PREMIUM
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique
+  name      String
+  age       Int
+  gender    String
+  interestedIn String @default("both")
+  countyId  Int
+  bio       String?
+  occupation String?
+  likes     String   @default("[]")
+  hobbies   String   @default("[]")
+  photos    String   @default("[]")
+  profilePicUrl String?
+
+  phoneVerificationCode String?
+  phoneVerified         Boolean  @default(false)
+  passwordHash          String
+  tier                  Tier     @default(FREE)
+  isActive              Boolean  @default(true)
+
+  county    County   @relation(fields: [countyId], references: [id])
+  swipesGiven     Swipe[]       @relation("SwipesGiven")
+  swipesReceived  Swipe[]       @relation("SwipesReceived")
+  matchesAsUser1  Match[]       @relation("MatchUser1")
+  matchesAsUser2  Match[]       @relation("MatchUser2")
+  eventsCreated   Event[]
+  reportsFiled    Report[]      @relation("ReportReporter")
+  reportsReceived Report[]      @relation("ReportReported")
+  rsvps           RSVP[]
+  transactions    Transaction[]
+  messageQuotas   MessageQuota[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model County {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+}
+
+model Swipe {
+  id        Int      @id @default(autoincrement())
+  swiperId  Int
+  swipedId  Int
+  direction String
+  createdAt DateTime @default(now())
+
+  swiper    User     @relation("SwipesGiven", fields: [swiperId], references: [id])
+  swiped    User     @relation("SwipesReceived", fields: [swipedId], references: [id])
+
+  @@unique([swiperId, swipedId])
+}
+
+model Match {
+  id           Int      @id @default(autoincrement())
+  user1Id      Int
+  user2Id      Int
+  unlocked     Boolean  @default(false)
+  user1FreeUsed Int     @default(0)
+  user2FreeUsed Int     @default(0)
+  matchedAt    DateTime @default(now())
+
+  user1        User     @relation("MatchUser1", fields: [user1Id], references: [id])
+  user2        User     @relation("MatchUser2", fields: [user2Id], references: [id])
+  messages     Message[]
+  messageQuotas MessageQuota[]
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  matchId   Int
+  senderId  Int
+  content   String
+  createdAt DateTime @default(now())
+
+  match     Match    @relation(fields: [matchId], references: [id])
+}
+
+model MessageQuota {
+  id      Int   @id @default(autoincrement())
+  matchId Int
+  userId  Int
+  used    Int   @default(0)
+  limit   Int   @default(5)
+
+  match   Match @relation(fields: [matchId], references: [id])
+  user    User  @relation(fields: [userId], references: [id])
+
+  @@unique([matchId, userId])
+}
+
+model Transaction {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  type         String
+  amount       Int
+  mpesaReceipt String?
+  matchId      Int?
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model Event {
+  id           Int      @id @default(autoincrement())
+  creatorId    Int
+  title        String
+  description  String
+  location     String
+  dateTime     DateTime
+  maxAttendees Int?
+  createdAt    DateTime @default(now())
+
+  creator      User     @relation(fields: [creatorId], references: [id])
+  attendees    RSVP[]
+}
+
+model RSVP {
+  id      Int      @id @default(autoincrement())
+  eventId Int
+  userId  Int
+  status  String   @default("going")
+
+  event   Event    @relation(fields: [eventId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+}
+
+model Report {
+  id         Int      @id @default(autoincrement())
+  reporterId Int
+  reportedId Int
+  reason     String
+  details    String?
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+
+  reporter   User     @relation("ReportReporter", fields: [reporterId], references: [id])
+  reported   User     @relation("ReportReported", fields: [reportedId], references: [id])
+}
