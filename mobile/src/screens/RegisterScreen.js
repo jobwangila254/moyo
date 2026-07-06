@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, Modal, FlatList, useWindowDimensions, Image, Platform,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { auth, users, uploadApi, setAuthToken } from '../services/api';
 
-const GENDERS = ['male', 'female', 'non-binary'];
+const GENDERS = ['male', 'female', 'non-binary', 'other'];
 const INTERESTED_IN_OPTIONS = [
   { label: 'Women', value: 'female' },
   { label: 'Men', value: 'male' },
@@ -48,24 +49,29 @@ export default function RegisterScreen({ navigation }) {
   const [showInterestedPicker, setShowInterestedPicker] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [photos, setPhotos] = useState([]);
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [, setUploadingPhotos] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCountiesLoading(true);
     users.getCounties().then(res => {
-      setCounties(res.data.data || []);
-    }).catch(() => {}).finally(() => setCountiesLoading(false));
+      if (!cancelled) { setCounties(res.data.data || []); }
+    }).catch(() => {}).finally(() => {
+      if (!cancelled) { setCountiesLoading(false); }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const toggleLike = (item) => {
     setSelectedLikes(prev =>
-      prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item]
+      prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item],
     );
   };
 
   const toggleHobby = (item) => {
     setSelectedHobbies(prev =>
-      prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item]
+      prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item],
     );
   };
 
@@ -235,7 +241,7 @@ export default function RegisterScreen({ navigation }) {
               <TextInput
                 style={styles.input} placeholder="0712 345 678"
                 placeholderTextColor="#c7c7cc" value={phone} onChangeText={setPhone}
-                keyboardType="phone-pad" maxLength={10}
+                keyboardType="phone-pad" maxLength={13}
               />
             </View>
 
@@ -281,7 +287,7 @@ export default function RegisterScreen({ navigation }) {
               <MaterialIcons name="expand-more" size={20} color="#8e8e93" />
             </TouchableOpacity>
 
-            <Text style={styles.label}>Interested In *</Text>
+            <Text style={styles.label}>Interested In</Text>
             <TouchableOpacity style={styles.inputWrapper} onPress={() => setShowInterestedPicker(true)}>
               <MaterialIcons name="favorite" size={20} color="#8e8e93" style={styles.inputIcon} />
               <Text style={[styles.input, interestedIn ? styles.pickerSelected : styles.pickerPlaceholder]}>
@@ -416,7 +422,7 @@ export default function RegisterScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             {countiesLoading ? (
-              <View style={{ padding: 40, alignItems: 'center' }}>
+              <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#FF2D55" />
               </View>
             ) : (
@@ -470,6 +476,10 @@ export default function RegisterScreen({ navigation }) {
     </View>
   );
 }
+
+RegisterScreen.propTypes = {
+  navigation: PropTypes.object,
+};
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF5F7' },
@@ -547,4 +557,5 @@ const styles = StyleSheet.create({
   photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   photoRemove: { position: 'absolute', top: 2, right: 2, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
   addPhotoButton: { width: 80, height: 80, borderRadius: 12, borderWidth: 2, borderColor: '#f0d0d8', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFAFB' },
+  loadingContainer: { padding: 40, alignItems: 'center' },
 });

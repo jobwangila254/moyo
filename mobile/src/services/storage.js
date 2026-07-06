@@ -1,33 +1,30 @@
-const isWeb = typeof window !== 'undefined';
-
-let SecureStore;
-try {
-  SecureStore = require('expo-secure-store');
-} catch {
-  SecureStore = null;
-}
+import { Platform } from 'react-native';
 
 const webStorage = {
   getItemAsync: async (key) => {
     try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
+      return window.localStorage.getItem(key);
+    } catch { return null; }
   },
   setItemAsync: async (key, value) => {
     try {
-      localStorage.setItem(key, value);
-    } catch {}
+      window.localStorage.setItem(key, value);
+    } catch { /* ignore */ }
   },
   deleteItemAsync: async (key) => {
     try {
-      localStorage.removeItem(key);
-    } catch {}
+      window.localStorage.removeItem(key);
+    } catch { /* ignore */ }
   },
 };
 
-const storage = SecureStore?.getItemAsync ? SecureStore : webStorage;
+const storage = Platform.OS === 'web'
+  ? webStorage
+  : (() => {
+      let SecureStore;
+      try { SecureStore = require('expo-secure-store'); } catch { SecureStore = null; }
+      return SecureStore?.getItemAsync ? SecureStore : webStorage;
+    })();
 
 export const getItem = async (key) => {
   try {
@@ -40,11 +37,11 @@ export const getItem = async (key) => {
 export const setItem = async (key, value) => {
   try {
     await storage.setItemAsync(key, value);
-  } catch {}
+  } catch { /* ignore */ }
 };
 
 export const removeItem = async (key) => {
   try {
     await storage.deleteItemAsync(key);
-  } catch {}
+  } catch { /* ignore */ }
 };

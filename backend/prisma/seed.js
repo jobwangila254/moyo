@@ -75,17 +75,14 @@ function pickRandom(arr, min, max) {
 async function main() {
   console.log('Cleaning database...');
   await prisma.report.deleteMany();
-  await prisma.rSVP.deleteMany();
-  await prisma.event.deleteMany();
   await prisma.transaction.deleteMany();
-  await prisma.messageQuota.deleteMany();
   await prisma.message.deleteMany();
   await prisma.match.deleteMany();
   await prisma.swipe.deleteMany();
   await prisma.user.deleteMany();
   await prisma.county.deleteMany();
 
-  const tables = ['Report', 'RSVP', 'Event', 'Transaction', 'MessageQuota', 'Message', 'Match', 'Swipe', 'User', 'County'];
+  const tables = ['Report', 'Transaction', 'Message', 'Match', 'Swipe', 'User', 'County'];
   for (const table of tables) {
     try { await prisma.$executeRawUnsafe(`ALTER SEQUENCE "${table}_id_seq" RESTART WITH 1`); } catch {}
   }
@@ -111,7 +108,7 @@ async function main() {
       const gender = genderPattern[slot];
       const namePool = gender === 'male' ? NAMES_MALE : NAMES_FEMALE;
       const name = `${namePool[idx % namePool.length]} ${SURNAMES[idx % SURNAMES.length]}`;
-      const age = randomAge(19, 36);
+      const age = randomAge(18, 55);
       const interestedIn = gender === 'male' ? 'female' : 'male';
       const phone = nextPhone();
       const bio = BIOS[idx % BIOS.length];
@@ -132,6 +129,7 @@ async function main() {
           photos: JSON.stringify([
             `https://i.pravatar.cc/400?u=user${idx + 1}_1&img=${(idx % 60) + 1}`,
             `https://i.pravatar.cc/400?u=user${idx + 1}_2&img=${((idx + 20) % 60) + 1}`,
+            `https://i.pravatar.cc/400?u=user${idx + 1}_3&img=${((idx + 40) % 60) + 1}`,
           ]),
           profilePicUrl: `https://i.pravatar.cc/400?u=user${idx + 1}`,
           phoneVerified: true,
@@ -222,15 +220,6 @@ async function main() {
     }
   }
   console.log('  Created messages across match conversations');
-
-  console.log('Seeding events...');
-  await prisma.event.createMany({
-    data: [
-      { creatorId: 1, title: 'Nairobi Tech Meetup', description: 'Connect with tech enthusiasts from Nairobi county', location: 'Nairobi Java House', dateTime: new Date('2026-06-15T14:00:00Z'), maxAttendees: 50 },
-      { creatorId: 5, title: 'Mombasa Beach Cleanup', description: 'Help keep our beaches clean!', location: 'Nyali Beach', dateTime: new Date('2026-06-20T08:00:00Z'), maxAttendees: 30 },
-      { creatorId: 10, title: 'Kisumu Music Festival', description: 'Live music from local artists', location: 'Kisumu Impala Park', dateTime: new Date('2026-07-01T10:00:00Z'), maxAttendees: 200 },
-    ],
-  });
 
   console.log('');
   console.log('✅ Seed complete! 141 users across 47 counties (3 per county)');

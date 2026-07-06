@@ -1,14 +1,21 @@
 {
-  "name": "campus-connect-ke-backend",
+  "name": "moyo-backend",
   "version": "1.0.0",
-  "description": "Backend API for Campus Connect KE - Secure Social Platform for Kenyan University Students",
+  "description": "Backend API for Moyo - Social Platform for Kenyan Adults",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "prisma:push": "npx prisma db push",
     "prisma:generate": "npx prisma generate",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
@@ -17,18 +24,28 @@
     "cloudinary": "^1.41.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
+    "expo-server-sdk": "^6.1.0",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
+    "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^6.9.8",
     "prisma": "^5.10.0",
-    "validator": "^13.11.0"
+    "socket.io": "^4.8.3",
+    "validator": "^13.11.0",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3"
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.3",
+    "prettier": "^3.2.5",
+    "supertest": "^6.3.4"
   }
 }

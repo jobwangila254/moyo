@@ -1,9 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, Animated, Dimensions } from 'react-native';
+import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const { height: SCREEN_H } = Dimensions.get('window');
 
 const HeartParticle = ({ delay, left, size }) => {
   const anim = useRef(new Animated.Value(0)).current;
@@ -17,11 +17,11 @@ const HeartParticle = ({ delay, left, size }) => {
           duration: 4000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     loop.start();
     return () => loop.stop();
-  }, []);
+  }, [delay, anim]);
 
   const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [SCREEN_H * 0.6, -100] });
   const opacity = anim.interpolate({ inputRange: [0, 0.1, 0.8, 1], outputRange: [0, 0.8, 0.4, 0] });
@@ -29,20 +29,24 @@ const HeartParticle = ({ delay, left, size }) => {
 
   return (
     <Animated.View
-      style={{
-        position: 'absolute',
+      style={[styles.particle, {
         left: left,
-        top: 0,
         transform: [{ translateY }, { scale }],
         opacity,
-      }}
+      }]}
     >
       <MaterialIcons name="favorite" size={size} color="rgba(255,45,85,0.3)" />
     </Animated.View>
   );
 };
 
-export default function OnboardingScreen({ navigation }) {
+HeartParticle.propTypes = {
+  delay: PropTypes.number,
+  left: PropTypes.string,
+  size: PropTypes.number,
+};
+
+function OnboardingScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -59,11 +63,11 @@ export default function OnboardingScreen({ navigation }) {
       Animated.sequence([
         Animated.spring(pulseAnim, { toValue: 1.15, tension: 100, friction: 3, useNativeDriver: true }),
         Animated.spring(pulseAnim, { toValue: 1, tension: 100, friction: 3, useNativeDriver: true }),
-      ])
+      ]),
     );
     pulse.start();
     return () => pulse.stop();
-  }, []);
+  }, [fadeIn, pulseAnim, slideUp]);
 
   const hearts = [
     { delay: 0, left: '10%', size: 18 },
@@ -112,7 +116,7 @@ export default function OnboardingScreen({ navigation }) {
             <View style={styles.featureIcon}>
               <MaterialIcons name="chat" size={22} color="#FF9500" />
             </View>
-            <Text style={styles.featureText}>5 free messages to start the conversation</Text>
+            <Text style={styles.featureText}>3 free messages to start the conversation</Text>
           </View>
           <View style={styles.featureRow}>
             <View style={styles.featureIcon}>
@@ -135,6 +139,12 @@ export default function OnboardingScreen({ navigation }) {
   );
 }
 
+OnboardingScreen.propTypes = {
+  navigation: PropTypes.object,
+};
+
+export default OnboardingScreen;
+
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: '#FFF5F7' },
   container: { alignItems: 'center', paddingHorizontal: 30, minHeight: SCREEN_H },
@@ -150,4 +160,8 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   secondaryButton: { padding: 16, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#FF2D55' },
   secondaryButtonText: { color: '#FF2D55', fontSize: 16, fontWeight: '600' },
+  particle: {
+    position: 'absolute',
+    top: 0,
+  },
 });

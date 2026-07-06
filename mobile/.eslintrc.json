@@ -1,0 +1,49 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true,
+    "react-native/react-native": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:react-native/all",
+    "prettier"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "plugins": ["react", "react-hooks", "react-native"],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "ignoreRestSiblings": true }],
+    "no-console": "off",
+    "eqeqeq": ["error", "always"],
+    "no-var": "error",
+    "prefer-const": "error",
+    "no-throw-literal": "error",
+    "curly": ["error", "all"],
+    "semi": ["warn", "always"],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "comma-dangle": ["warn", "always-multiline"],
+    "react/jsx-uses-react": "off",
+    "react/react-in-jsx-scope": "off",
+    "react-native/no-color-literals": "off",
+    "react-native/sort-styles": "off",
+    "react/prop-types": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+    "react-native/no-inline-styles": "warn",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/refs": "off",
+    "react-hooks/set-state-in-effect": "warn"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+}

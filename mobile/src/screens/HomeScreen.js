@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
   RefreshControl, ScrollView, Image, TextInput, useWindowDimensions, Modal, FlatList, SafeAreaView,
@@ -27,6 +28,7 @@ export default function HomeScreen({ navigation }) {
   const [counties, setCounties] = useState([]);
   const [showCountyFilter, setShowCountyFilter] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [matchModal, setMatchModal] = useState({ visible: false, matchId: null, matchName: '', matchPic: '' });
 
   const [filters, setFilters] = useState({
     countyId: '',
@@ -41,14 +43,14 @@ export default function HomeScreen({ navigation }) {
 
   const fetchData = useCallback(async (isRefresh) => {
     try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+      if (isRefresh) {setRefreshing(true);}
+      else {setLoading(true);}
 
       const params = {};
-      if (filters.countyId) params.countyId = filters.countyId;
-      if (filters.minAge) params.minAge = filters.minAge;
-      if (filters.maxAge) params.maxAge = filters.maxAge;
-      if (filters.gender) params.gender = filters.gender;
+      if (filters.countyId) {params.countyId = filters.countyId;}
+      if (filters.minAge) {params.minAge = filters.minAge;}
+      if (filters.maxAge) {params.maxAge = filters.maxAge;}
+      if (filters.gender) {params.gender = filters.gender;}
 
       const [profilesRes, meRes] = await Promise.all([
         users.getProfiles(params).catch(() => ({ data: { data: [] } })),
@@ -90,16 +92,30 @@ export default function HomeScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filters, activeTab]);
+  }, [filters, activeTab, navigation]);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
   const handleSwipe = async (direction, swipedId) => {
     try {
-      await users.swipe({ swipedId, direction });
-      setCurrentIndex((prev) => prev + 1);
+      const res = await users.swipe({ swipedId, direction });
+      if (direction === 'superlike') {
+        Alert.alert('Superlike Sent!', 'They\'ll know you\'re really interested 💫');
+      }
+      const matchData = res.data?.data;
+      if (matchData?.matchId) {
+        const matchedUser = profiles[currentIndex];
+        setMatchModal({
+          visible: true,
+          matchId: matchData.matchId,
+          matchName: matchedUser?.name || 'Someone',
+          matchPic: matchedUser?.photos?.[0] || matchedUser?.profilePicUrl || '',
+        });
+      } else {
+        setCurrentIndex((prev) => prev + 1);
+      }
     } catch (error) {
-      if (error.response?.status === 409) setCurrentIndex((prev) => prev + 1);
+      if (error.response?.status === 409) {setCurrentIndex((prev) => prev + 1);}
       else if (error.response?.status === 403) {
         Alert.alert('Likes Used Up', error.response?.data?.error || 'Free users get 5 likes. Upgrade to Premium for unlimited likes.');
       }
@@ -112,6 +128,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   const currentProfile = profiles[currentIndex];
+  const scrollContentStyle = currentProfile ? styles.scrollContentFill : undefined;
 
   const applyFilters = () => {
     setShowFilters(false);
@@ -153,15 +170,10 @@ export default function HomeScreen({ navigation }) {
         </View>
       );
     }
-    return <UserCard key={currentProfile.id} user={currentProfile} onSwipe={handleSwipe} onPress={setSelectedProfile} cardHeight={height < 700 ? height * 0.55 : height * 0.6} />;
+    return <UserCard key={currentProfile.id} user={currentProfile} onSwipe={handleSwipe} onPress={setSelectedProfile} cardHeight={height < 700 ? height * 0.55 : height * 0.6} tier={userData?.tier} />;
   };
 
-  const loadMatches = async () => {
-    try {
-      const res = await users.getMatches();
-      setMatches(res.data.data || []);
-    } catch (e) {}
-  };
+
 
   const onRefresh = () => fetchData(true);
 
@@ -220,13 +232,13 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.filterLabel}>County</Text>
             <TouchableOpacity style={styles.filterInput} onPress={() => setShowCountyFilter(true)}>
               <MaterialIcons name="location-on" size={18} color="#FF2D55" />
-              <Text style={[styles.filterInputText, !filters.countyId && { color: '#c7c7cc' }]}>
+              <Text style={[styles.filterInputText, !filters.countyId && styles.placeholderText]}>
                 {filters.countyName || 'All Counties'}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.filterRow}>
-              <View style={{ flex: 1 }}>
+              <View style={styles.filterCol}>
                 <Text style={styles.filterLabel}>Min Age</Text>
                 <TextInput
                   style={styles.filterInput} placeholder="18" placeholderTextColor="#c7c7cc"
@@ -234,7 +246,7 @@ export default function HomeScreen({ navigation }) {
                   keyboardType="number-pad" maxLength={2}
                 />
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={styles.filterColRight}>
                 <Text style={styles.filterLabel}>Max Age</Text>
                 <TextInput
                   style={styles.filterInput} placeholder="60" placeholderTextColor="#c7c7cc"
@@ -369,7 +381,7 @@ export default function HomeScreen({ navigation }) {
       {activeTab === 'discover' && (
         <ScrollView
           style={styles.content}
-          contentContainerStyle={{ flex: !!currentProfile ? 1 : undefined }}
+          contentContainerStyle={scrollContentStyle}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {renderDiscover()}
@@ -380,11 +392,14 @@ export default function HomeScreen({ navigation }) {
 
       <TouchableOpacity
         style={[styles.upgradeFAB, { bottom: Math.max(insets.bottom, 16) + 10 }]}
-        onPress={() => navigation.navigate('Payment', { matchId: null })}
+        onPress={userData?.tier === 'PREMIUM' && profiles[currentIndex]
+          ? () => handleSwipe('superlike', profiles[currentIndex].id)
+          : () => navigation.navigate('Payment', { matchId: null })
+        }
       >
-        <MaterialIcons name="stars" size={24} color="#fff" />
+        <MaterialIcons name="star" size={24} color="#fff" />
         <Text style={styles.upgradeText}>
-          {userData?.tier === 'PREMIUM' ? 'Unlock Match' : 'Go Premium'}
+          {userData?.tier === 'PREMIUM' ? 'Superlike' : 'Go Premium'}
         </Text>
       </TouchableOpacity>
 
@@ -484,19 +499,87 @@ export default function HomeScreen({ navigation }) {
                       </View>
                     </View>
                   )}
+                  <TouchableOpacity
+                    style={styles.reportButton}
+                    onPress={() => {
+                      setSelectedProfile(null);
+                      Alert.alert('Report User', 'Are you sure you want to report this user?', [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Report',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              await users.reportUser({ reportedId: selectedProfile.id, reason: 'Inappropriate behavior', details: 'Reported from profile' });
+                              Alert.alert('Reported', 'Thank you. We will review this profile.');
+                            } catch { Alert.alert('Error', 'Failed to submit report'); }
+                          },
+                        },
+                      ]);
+                    }}
+                  >
+                    <MaterialIcons name="flag" size={16} color="#FF3B30" />
+                    <Text style={styles.reportButtonText}>Report User</Text>
+                  </TouchableOpacity>
                 </View>
               </>
             )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      <Modal visible={matchModal.visible} transparent animationType="fade">
+        <SafeAreaView style={styles.matchModalOverlay}>
+          <View style={styles.matchModalContent}>
+            <MaterialIcons name="favorite" size={64} color="#FF2D55" />
+            <Text style={styles.matchModalTitle}>It&apos;s a Match!</Text>
+            <Text style={styles.matchModalSub}>You and {matchModal.matchName} liked each other</Text>
+            <Image
+              source={{ uri: matchModal.matchPic || 'https://via.placeholder.com/120' }}
+              style={styles.matchModalPic}
+            />
+            <View style={styles.matchModalButtons}>
+              <TouchableOpacity
+                style={styles.matchModalPrimary}
+                onPress={() => {
+                  setMatchModal({ visible: false, matchId: null, matchName: '', matchPic: '' });
+                  setCurrentIndex((prev) => prev + 1);
+                }}
+              >
+                <Text style={styles.matchModalPrimaryText}>Keep Swiping</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.matchModalSecondary}
+                onPress={() => {
+                  const mId = matchModal.matchId;
+                  setMatchModal({ visible: false, matchId: null, matchName: '', matchPic: '' });
+                  setCurrentIndex((prev) => prev + 1);
+                  const matched = matches.find(m => m.id === mId);
+                  if (matched) {
+                    navigation.navigate('Chat', { matchId: mId, match: matched.match, freeRemaining: matched.freeRemaining, unlocked: matched.unlocked });
+                  } else {
+                    setActiveTab('matches');
+                  }
+                }}
+              >
+                <Text style={styles.matchModalSecondaryText}>Say Hello 💕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
 
+HomeScreen.propTypes = {
+  navigation: PropTypes.object,
+};
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF5F7' },
   loadingContainer: { alignItems: 'center' },
+  scrollContentFill: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingBottom: 15, backgroundColor: '#fff',
@@ -564,7 +647,10 @@ const styles = StyleSheet.create({
     borderRadius: 10, backgroundColor: '#FFFAFB', paddingHorizontal: 12, paddingVertical: 10, fontSize: 15,
   },
   filterInputText: { fontSize: 15, color: '#1c1c1e', flex: 1, marginLeft: 8 },
+  placeholderText: { color: '#c7c7cc' },
   filterRow: { flexDirection: 'row', gap: 12 },
+  filterCol: { flex: 1 },
+  filterColRight: { flex: 1, marginLeft: 12 },
   filterChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   filterChip: {
     borderWidth: 1, borderColor: '#f0d0d8', borderRadius: 14,
@@ -607,4 +693,23 @@ const styles = StyleSheet.create({
   profileModalLikeTag: { backgroundColor: '#FF2D5522' },
   profileModalHobbyTag: { backgroundColor: '#5856D622' },
   profileModalTagText: { fontSize: 13, color: '#fff' },
+  reportButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    marginTop: 24, padding: 12, gap: 6,
+    borderWidth: 1, borderColor: '#FF3B3044', borderRadius: 10,
+  },
+  reportButtonText: { color: '#FF3B30', fontSize: 14, fontWeight: '600' },
+  matchModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  matchModalContent: {
+    backgroundColor: '#fff', borderRadius: 24, padding: 32,
+    alignItems: 'center', marginHorizontal: 40, width: '80%',
+  },
+  matchModalTitle: { fontSize: 28, fontWeight: 'bold', color: '#FF2D55', marginTop: 12 },
+  matchModalSub: { fontSize: 14, color: '#8e8e93', textAlign: 'center', marginTop: 4, marginBottom: 20 },
+  matchModalPic: { width: 100, height: 100, borderRadius: 50, marginBottom: 24 },
+  matchModalButtons: { width: '100%', gap: 10 },
+  matchModalPrimary: { backgroundColor: '#FF2D55', padding: 14, borderRadius: 14, alignItems: 'center' },
+  matchModalPrimaryText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  matchModalSecondary: { borderWidth: 1.5, borderColor: '#FF2D55', padding: 14, borderRadius: 14, alignItems: 'center' },
+  matchModalSecondaryText: { color: '#FF2D55', fontSize: 16, fontWeight: 'bold' },
 });

@@ -1,4 +1,5 @@
 const axios = require('axios');
+const logger = require('../utils/logger');
 
 class DarajaAPI {
   constructor() {
@@ -7,9 +8,8 @@ class DarajaAPI {
     this.shortCode = process.env.MPESA_SHORTCODE;
     this.passkey = process.env.MPESA_PASSKEY;
     this.environment = process.env.MPESA_ENVIRONMENT || 'sandbox';
-    this.baseURL = this.environment === 'production'
-      ? 'https://api.safaricom.co.ke'
-      : 'https://sandbox.safaricom.co.ke';
+    this.baseURL =
+      this.environment === 'production' ? 'https://api.safaricom.co.ke' : 'https://sandbox.safaricom.co.ke';
     this.accessToken = null;
     this.tokenExpiry = null;
   }
@@ -21,16 +21,15 @@ class DarajaAPI {
 
     try {
       const auth = Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString('base64');
-      const response = await axios.get(
-        `${this.baseURL}/oauth/v1/generate?grant_type=client_credentials`,
-        { headers: { Authorization: `Basic ${auth}` } }
-      );
+      const response = await axios.get(`${this.baseURL}/oauth/v1/generate?grant_type=client_credentials`, {
+        headers: { Authorization: `Basic ${auth}` },
+      });
 
       this.accessToken = response.data.access_token;
       this.tokenExpiry = Date.now() + (response.data.expires_in - 60) * 1000;
       return this.accessToken;
     } catch (error) {
-      console.error('Daraja auth error:', error.response?.data || error.message);
+      logger.error('Daraja auth error:', error.response?.data || error.message);
       throw new Error('Failed to get M-Pesa access token');
     }
   }
@@ -54,12 +53,12 @@ class DarajaAPI {
           AccountReference: accountReference,
           TransactionDesc: transactionDesc,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       return response.data;
     } catch (error) {
-      console.error('STK Push error:', error.response?.data || error.message);
+      logger.error('STK Push error:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -76,12 +75,12 @@ class DarajaAPI {
           Timestamp: timestamp,
           CheckoutRequestID: checkoutRequestId,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       return response.data;
     } catch (error) {
-      console.error('Query status error:', error.response?.data || error.message);
+      logger.error('Query status error:', error.response?.data || error.message);
       throw error;
     }
   }

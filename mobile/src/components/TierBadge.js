@@ -1,5 +1,5 @@
-import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import PropTypes from 'prop-types';
 import { MaterialIcons } from '@expo/vector-icons';
 
 const TIER_CONFIG = {
@@ -22,11 +22,15 @@ const TierBadge = ({ tier, size = 'small' }) => {
   const isSmall = size === 'small';
 
   return (
-    <View style={[
-      styles.badge,
-      { backgroundColor: config.bgColor },
-      isSmall ? styles.smallBadge : styles.largeBadge,
-    ]}>
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: config.bgColor },
+        isSmall ? styles.smallBadge : styles.largeBadge,
+      ]}
+      accessibilityLabel={`${config.label} account`}
+      accessibilityRole="text"
+    >
       <MaterialIcons
         name={config.icon}
         size={isSmall ? 12 : 16}
@@ -68,5 +72,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+TierBadge.propTypes = {
+  tier: PropTypes.string,
+  size: PropTypes.string,
+};
 
 export default TierBadge;

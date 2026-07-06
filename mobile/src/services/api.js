@@ -9,8 +9,8 @@ let cachedToken = null;
 const loadToken = async () => {
   try {
     const stored = await getItem(TOKEN_KEY);
-    if (stored) cachedToken = stored;
-  } catch {}
+    if (stored) {cachedToken = stored;}
+  } catch { /* ignore */ }
 };
 
 const saveToken = async (token) => {
@@ -39,8 +39,8 @@ api.interceptors.request.use(async (config) => {
   if (!cachedToken) {
     try {
       const stored = await getItem(TOKEN_KEY);
-      if (stored) cachedToken = stored;
-    } catch {}
+      if (stored) {cachedToken = stored;}
+    } catch { /* ignore */ }
   }
   if (cachedToken) {
     config.headers.Authorization = `Bearer ${cachedToken}`;
@@ -56,7 +56,7 @@ api.interceptors.response.use(
       await removeItem(TOKEN_KEY).catch(() => {});
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 loadToken();
@@ -67,6 +67,8 @@ export const auth = {
   resendCode: (phone) => api.post('/auth/resend-code', { phone }),
   login: (data) => api.post('/auth/login', data),
   getMe: () => api.get('/auth/me'),
+  forgotPassword: (phone) => api.post('/auth/forgot-password', { phone }),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
 };
 
 export const users = {
@@ -85,20 +87,14 @@ export const users = {
   reportUser: (data) => api.post('/users/report', data),
   getSafetyStatus: () => api.get('/users/safety-status'),
   deleteAccount: () => api.delete('/users/account'),
+  updatePushToken: (token) => api.post('/users/push-token', { token }),
+  useFreeUnlock: (likerId) => api.post(`/users/likes/use-free-unlock/${likerId}`),
 };
 
 export const payments = {
   initiateSTKPush: (data) => api.post('/payments/stk-push', data),
   getStatus: (transactionId) => api.get(`/payments/status/${transactionId}`),
   getHistory: () => api.get('/payments/history'),
-};
-
-export const eventsApi = {
-  getEvents: (params) => api.get('/events', { params }),
-  getEventById: (id) => api.get(`/events/${id}`),
-  createEvent: (data) => api.post('/events', data),
-  rsvpEvent: (eventId, status) => api.post(`/events/${eventId}/rsvp`, { status }),
-  deleteEvent: (id) => api.delete(`/events/${id}`),
 };
 
 export const uploadApi = {

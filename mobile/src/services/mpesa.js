@@ -17,10 +17,14 @@ export const validatePhoneNumber = (phone) => {
   return formatted.length === 12 && formatted.startsWith('254');
 };
 
-export const MATCH_UNLOCK_AMOUNT = 50;
-export const SUBSCRIPTION_AMOUNT = 500;
+export const MATCH_UNLOCK_AMOUNT = 10;
 
 export const PAYMENT_OPTIONS = {
   match_unlock: { amount: MATCH_UNLOCK_AMOUNT, label: 'Unlock Match', description: 'Unlimited messaging for this match' },
-  subscription: { amount: SUBSCRIPTION_AMOUNT, label: 'Premium Subscription', description: 'See profiles from all counties + unlimited messages' },
+  daily_chat_unlock: { amount: 30, label: 'Daily Chat Unlimited', description: 'Unlimited chat for today — all matches' },
+  subscription_weekly: { amount: 150, label: 'Weekly Premium', description: '1 week — see profiles from all counties' },
+  subscription_fortnightly: { amount: 250, label: 'Fortnightly Premium', description: '2 weeks — see profiles from all counties' },
+  subscription_monthly: { amount: 500, label: 'Monthly Premium', description: '1 month — unlimited access' },
+  subscription_halfyear: { amount: 2500, label: '6 Months Premium', description: 'Half year — best value' },
+  subscription_yearly: { amount: 5000, label: 'Yearly Premium', description: 'Full year — ultimate access' },
 };

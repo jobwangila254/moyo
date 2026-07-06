@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
   FlatList, Image, useWindowDimensions,
@@ -6,19 +7,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { users, payments } from '../services/api';
+import { users, payments, auth } from '../services/api';
 
 export default function LikesScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  useWindowDimensions();
   const [tab, setTab] = useState('received');
   const [received, setReceived] = useState([]);
   const [sent, setSent] = useState([]);
   const [requiresPayment, setRequiresPayment] = useState(false);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-
-  useFocusEffect(useCallback(() => { fetchLikes(); }, []));
+  const [pollingLikes, setPollingLikes] = useState(false);
 
   const fetchLikes = async () => {
     setLoading(true);
@@ -31,8 +31,36 @@ export default function LikesScreen({ navigation }) {
       setRequiresPayment(recData.requiresPayment || false);
       setReceived(recData.likes || []);
       setSent(sentRes.data.data || []);
-    } catch (e) {
+    } catch (e) { /* ignore */
     } finally { setLoading(false); }
+  };
+
+  useFocusEffect(useCallback(() => { fetchLikes(); }, []));
+
+  const pollLikeViewerStatus = (transactionId) => {
+    setPollingLikes(true);
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await payments.getStatus(transactionId);
+        const tx = res.data?.data;
+        if (tx?.status === 'completed') {
+          clearInterval(interval);
+          setPollingLikes(false);
+          Alert.alert('Payment Successful!', 'You can now see who likes you 💕');
+          fetchLikes();
+        } else if (tx?.status === 'failed' || attempts > 30) {
+          clearInterval(interval);
+          setPollingLikes(false);
+        }
+      } catch {
+        if (attempts > 30) {
+          clearInterval(interval);
+          setPollingLikes(false);
+        }
+      }
+    }, 2000);
   };
 
   const handlePayToView = async () => {
@@ -46,19 +74,43 @@ export default function LikesScreen({ navigation }) {
           onPress: async () => {
             setPaying(true);
             try {
-              await payments.initiateSTKPush({ phone: '0710000000', type: 'like_viewer' });
-              Alert.alert('Payment Sent', 'Once confirmed, you will see your likes.');
-              setTimeout(fetchLikes, 4000);
+              const meRes = await auth.getMe();
+              const phone = meRes.data.data.phone;
+              const res = await payments.initiateSTKPush({ phone, type: 'like_viewer' });
+              setPaying(false);
+              const txId = res.data?.data?.transactionId;
+              if (txId) {
+                pollLikeViewerStatus(txId);
+              } else {
+                Alert.alert('Payment Sent', 'Once confirmed, you will see your likes.');
+                setTimeout(fetchLikes, 4000);
+              }
             } catch (e) {
+              setPaying(false);
               Alert.alert('Error', e.response?.data?.error || 'Payment failed');
-            } finally { setPaying(false); }
+            }
           },
         },
-      ]
+      ],
     );
   };
 
-  const handleApprove = async (likerId) => {
+  const handleApprove = async (likerId, likerTier, likerName) => {
+    if (likerTier === 'FREE') {
+      try {
+        const res = await users.useFreeUnlock(likerId);
+        const { matchId } = res.data.data;
+        navigation.navigate('Chat', { matchId, match: { id: null, name: likerName, profilePicUrl: null } });
+        return;
+      } catch (err) {
+        if (err.response?.status !== 403) {
+          Alert.alert('Error', err.response?.data?.error || 'Failed to unlock');
+          return;
+        }
+        navigation.navigate('Payment', { likerId, type: 'like_unlock', matchName: likerName });
+        return;
+      }
+    }
     try {
       const res = await users.approveLike(likerId);
       const { matchId, unlocked } = res.data.data;
@@ -69,11 +121,17 @@ export default function LikesScreen({ navigation }) {
           { text: 'OK', onPress: () => fetchLikes() },
           ...(matchId && !unlocked ? [{ text: 'Unlock for Ksh 50', onPress: () => navigation.navigate('Payment', { matchId }) }] : []),
           ...(matchId ? [{ text: 'Chat', onPress: () => navigation.navigate('Chat', { matchId, match: received.find(r => r.user.id === likerId)?.user }) }] : []),
-        ]
+        ],
       );
     } catch (error) {
       if (error.response?.status === 403) {
         Alert.alert('Likes Used Up', 'Free users get 5 likes. Upgrade to Premium for unlimited likes.');
+      } else if (error.response?.status === 409) {
+        Alert.alert('Already Matched', 'You already matched with this user!');
+        fetchLikes();
+      } else if (error.response?.status === 404) {
+        Alert.alert('No Longer Available', 'This like is no longer available.');
+        fetchLikes();
       } else {
         Alert.alert('Error', error.response?.data?.error || 'Failed to approve');
       }
@@ -92,7 +150,7 @@ export default function LikesScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color="#FF2D55" />
       </View>
     );
@@ -111,9 +169,13 @@ export default function LikesScreen({ navigation }) {
         <View style={styles.payBanner}>
           <MaterialIcons name="lock" size={20} color="#fff" />
           <Text style={styles.payBannerText}>Pay Ksh 50 to see who likes you</Text>
-          <TouchableOpacity style={styles.payBtn} onPress={handlePayToView} disabled={paying}>
-            {paying ? <ActivityIndicator size="small" color="#FF2D55" /> : <Text style={styles.payBtnText}>Unlock</Text>}
-          </TouchableOpacity>
+          {pollingLikes ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <TouchableOpacity style={styles.payBtn} onPress={handlePayToView} disabled={paying}>
+              {paying ? <ActivityIndicator size="small" color="#FF2D55" /> : <Text style={styles.payBtnText}>Unlock</Text>}
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -138,7 +200,7 @@ export default function LikesScreen({ navigation }) {
           <View style={styles.emptyState}>
             <MaterialIcons name="favorite-border" size={60} color="#8e8e93" />
             <Text style={styles.emptyTitle}>No likes yet</Text>
-            <Text style={styles.emptySubtitle}>When someone likes you, they'll show up here</Text>
+            <Text style={styles.emptySubtitle}>When someone likes you, they&apos;ll show up here</Text>
           </View>
         ) : (
           <FlatList
@@ -146,7 +208,7 @@ export default function LikesScreen({ navigation }) {
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <View style={styles.likeCard}>
+              <TouchableOpacity style={styles.likeCard} onPress={() => navigation.navigate('ViewUser', { userId: item.user.id, matched: item.matched, iLikedBack: item.iLikedBack, canApprove: item.canApprove, likeId: item.id })}>
                 <Image
                   source={{ uri: item.user.profilePicUrl || 'https://via.placeholder.com/60' }}
                   style={styles.avatar}
@@ -154,16 +216,22 @@ export default function LikesScreen({ navigation }) {
                 <View style={styles.likeInfo}>
                   <Text style={styles.likeName}>{item.user.name}</Text>
                   <Text style={styles.likeMeta}>{item.user.age} | {item.user.county?.name || 'Unknown'}</Text>
-                  {item.matched && <Text style={styles.matchedBadge}>Matched ✅</Text>}
                 </View>
-                {!item.matched && !item.iLikedBack && (
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item.user.id)}>
-                    <MaterialIcons name="favorite" size={20} color="#fff" />
-                    <Text style={styles.approveBtnText}>Like Back</Text>
+                {item.matched ? (
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => navigation.navigate('Chat', { matchId: item.matchId, match: item.user })}>
+                    <MaterialIcons name="chat" size={18} color="#fff" />
+                    <Text style={styles.approveBtnText}>Chat</Text>
                   </TouchableOpacity>
+                ) : (
+                  !item.iLikedBack && (
+                    <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item.user.id, item.user.tier, item.user.name)}>
+                      <MaterialIcons name="favorite" size={20} color="#fff" />
+                      <Text style={styles.approveBtnText}>Like Back</Text>
+                    </TouchableOpacity>
+                  )
                 )}
-                {item.canApprove && (
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item.user.id)}>
+                {!item.matched && item.canApprove && (
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item.user.id, item.user.tier, item.user.name)}>
                     <MaterialIcons name="favorite" size={20} color="#fff" />
                     <Text style={styles.approveBtnText}>Approve</Text>
                   </TouchableOpacity>
@@ -171,7 +239,7 @@ export default function LikesScreen({ navigation }) {
                 <TouchableOpacity style={styles.dismissBtn} onPress={() => handleDismiss(item.user.id)}>
                   <MaterialIcons name="close" size={20} color="#FF3B30" />
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )
@@ -190,7 +258,10 @@ export default function LikesScreen({ navigation }) {
             keyExtractor={(item) => String(item.user.id)}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <View style={styles.likeCard}>
+              <TouchableOpacity
+                style={styles.likeCard}
+                onPress={item.matched ? () => navigation.navigate('Chat', { matchId: item.matchId, match: item.user }) : undefined}
+              >
                 <Image
                   source={{ uri: item.user.profilePicUrl || 'https://via.placeholder.com/60' }}
                   style={styles.avatar}
@@ -201,18 +272,21 @@ export default function LikesScreen({ navigation }) {
                 </View>
                 <View style={styles.statusBadge}>
                   {item.matched ? (
-                    <View style={styles.matchedBadge}>
+                    <TouchableOpacity
+                      style={styles.matchedBadge}
+                      onPress={() => navigation.navigate('Chat', { matchId: item.matchId, match: item.user })}
+                    >
                       <MaterialIcons name="check-circle" size={16} color="#34C759" />
-                      <Text style={{ color: '#34C759', fontWeight: '600', fontSize: 13 }}>Matched</Text>
-                    </View>
+                      <Text style={styles.matchedText}>Chat</Text>
+                    </TouchableOpacity>
                   ) : (
                     <View style={styles.pendingBadge}>
                       <MaterialIcons name="hourglass-empty" size={16} color="#FF9500" />
-                      <Text style={{ color: '#FF9500', fontWeight: '600', fontSize: 13 }}>Pending</Text>
+                      <Text style={styles.pendingText}>Pending</Text>
                     </View>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )
@@ -220,6 +294,10 @@ export default function LikesScreen({ navigation }) {
     </View>
   );
 }
+
+LikesScreen.propTypes = {
+  navigation: PropTypes.object,
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF5F7' },
@@ -246,7 +324,10 @@ const styles = StyleSheet.create({
   pendingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   approveBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF2D55', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, gap: 4 },
   approveBtnText: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
+  matchedText: { color: '#34C759', fontWeight: '600', fontSize: 13 },
+  pendingText: { color: '#FF9500', fontWeight: '600', fontSize: 13 },
   dismissBtn: { padding: 6, marginLeft: 4 },
+  centered: { justifyContent: 'center', alignItems: 'center' },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
   emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#1c1c1e', marginTop: 15 },
   emptySubtitle: { fontSize: 14, color: '#8e8e93', textAlign: 'center', marginTop: 8 },

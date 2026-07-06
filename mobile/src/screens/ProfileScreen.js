@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,9 +24,7 @@ export default function ProfileScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  useFocusEffect(React.useCallback(() => { fetchProfile(); }, []));
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const response = await auth.getMe();
       const data = response.data.data;
@@ -41,13 +40,15 @@ export default function ProfileScreen({ navigation }) {
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       }
     } finally { setLoading(false); }
-  };
+  }, [navigation]);
+
+  useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const payload = { name, bio, occupation, interestedIn };
-      if (age) payload.age = parseInt(age, 10);
+      if (age) {payload.age = parseInt(age, 10);}
       await users.updateProfile(payload);
       Alert.alert('Updated', "Your heart's profile has been updated 💕");
       fetchProfile();
@@ -70,7 +71,7 @@ export default function ProfileScreen({ navigation }) {
       aspect: [1, 1],
     });
 
-    if (result.canceled) return;
+    if (result.canceled) {return;}
 
     const asset = result.assets[0];
     setUploading(true);
@@ -101,9 +102,9 @@ export default function ProfileScreen({ navigation }) {
         text: 'Remove', style: 'destructive',
         onPress: async () => {
           try {
+            await uploadApi.deletePhoto(url);
             const currentPhotos = user?.photos || [];
             const filtered = currentPhotos.filter(p => p !== url);
-            await users.updateProfile({ photos: filtered, profilePicUrl: user.profilePicUrl === url ? (filtered[0] || null) : undefined });
             setUser(prev => ({ ...prev, photos: filtered, profilePicUrl: prev.profilePicUrl === url ? (filtered[0] || null) : prev.profilePicUrl }));
           } catch (error) {
             Alert.alert('Error', 'Failed to remove photo');
@@ -146,7 +147,7 @@ export default function ProfileScreen({ navigation }) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
             {photos.map((url, idx) => (
               <TouchableOpacity key={idx} onLongPress={() => handleRemovePhoto(url)}>
-                <Image source={{ uri: url }} style={[styles.thumbPhoto, idx === 0 && { borderWidth: 2, borderColor: '#FF2D55' }]} />
+                <Image source={{ uri: url }} style={[styles.thumbPhoto, idx === 0 && styles.thumbPhotoActive]} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -230,19 +231,36 @@ export default function ProfileScreen({ navigation }) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Payment')}>
-          <MaterialIcons name="stars" size={22} color="#5856D6" />
-          <Text style={styles.menuText}>Go Premium</Text>
+        {user?.tier === 'PREMIUM' ? (
+          <View style={styles.menuItem}>
+            <MaterialIcons name="stars" size={22} color="#FF9500" />
+            <Text style={[styles.menuText, styles.premiumText]}>Premium Active</Text>
+            <MaterialIcons name="check-circle" size={22} color="#34C759" />
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Payment')}>
+            <MaterialIcons name="stars" size={22} color="#5856D6" />
+            <Text style={styles.menuText}>Go Premium</Text>
+            <MaterialIcons name="chevron-right" size={22} color="#8e8e93" />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Safety')}>
+          <MaterialIcons name="security" size={22} color="#34C759" />
+          <Text style={styles.menuText}>Safety Tips</Text>
           <MaterialIcons name="chevron-right" size={22} color="#8e8e93" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount}>
           <MaterialIcons name="delete-forever" size={22} color="#FF3B30" />
-          <Text style={[styles.menuText, { color: '#FF3B30' }]}>Delete Account</Text>
+          <Text style={[styles.menuText, styles.deleteText]}>Delete Account</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
+
+ProfileScreen.propTypes = {
+  navigation: PropTypes.object,
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF5F7' },
@@ -251,6 +269,7 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 8 },
   photoStrip: { flexGrow: 0, marginBottom: 8, maxHeight: 66 },
   thumbPhoto: { width: 60, height: 60, borderRadius: 8, marginHorizontal: 3, backgroundColor: '#f0f0f0' },
+  thumbPhotoActive: { borderWidth: 2, borderColor: '#FF2D55' },
   photoAddRow: { flexDirection: 'column', alignItems: 'center', marginBottom: 10, gap: 6, paddingHorizontal: 20 },
   photoAddBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF2D55', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, gap: 6 },
   photoAddBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
@@ -282,6 +301,8 @@ const styles = StyleSheet.create({
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', gap: 12 },
   menuText: { flex: 1, fontSize: 16, color: '#1c1c1e' },
+  premiumText: { color: '#FF9500' },
+  deleteText: { color: '#FF3B30' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     borderWidth: 1, borderColor: '#f0d0d8', borderRadius: 14,

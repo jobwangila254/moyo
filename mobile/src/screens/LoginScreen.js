@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, useWindowDimensions, ScrollView,
@@ -41,7 +42,7 @@ export default function LoginScreen({ navigation }) {
             <MaterialIcons name="favorite" size={36} color="#fff" />
           </View>
           <Text style={styles.romanticTitle}>Welcome back, sunshine</Text>
-          <Text style={styles.subtitle}>Someone's been missing you ✨</Text>
+          <Text style={styles.subtitle}>Someone&apos;s been missing you ✨</Text>
         </View>
 
         <View style={styles.formCard}>
@@ -51,7 +52,7 @@ export default function LoginScreen({ navigation }) {
             <TextInput
               style={styles.input} placeholder="0712 345 678"
               placeholderTextColor="#c7c7cc" value={phone} onChangeText={setPhone}
-              keyboardType="phone-pad" maxLength={10}
+              keyboardType="phone-pad" maxLength={13}
             />
           </View>
 
@@ -81,13 +82,13 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkButton} onPress={() => Alert.alert('Reset', 'Password reset coming soon')}>
+          <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('ForgotPassword')}>
             <Text style={styles.linkText}>Forgot your secret?</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.footer, isSmall && { paddingVertical: 20 }]}>
-          <Text style={styles.footerText}>Haven't found love yet? </Text>
+        <View style={[styles.footer, isSmall && styles.footerSmall]}>
+          <Text style={styles.footerText}>Haven&apos;t found love yet? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
             <Text style={styles.footerLink}>Join Now</Text>
           </TouchableOpacity>
@@ -96,6 +97,10 @@ export default function LoginScreen({ navigation }) {
     </View>
   );
 }
+
+LoginScreen.propTypes = {
+  navigation: PropTypes.object,
+};
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF5F7' },
@@ -134,6 +139,7 @@ const styles = StyleSheet.create({
   linkButton: { alignItems: 'center', marginTop: 15 },
   linkText: { color: '#FF2D55', fontSize: 14 },
   footer: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 30 },
+  footerSmall: { paddingVertical: 20 },
   footerText: { color: '#8e8e93', fontSize: 14 },
   footerLink: { color: '#FF2D55', fontSize: 14, fontWeight: 'bold' },
 });

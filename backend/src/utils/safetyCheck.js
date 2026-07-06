@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../prisma');
 
-const prisma = new PrismaClient();
-
-exports.checkUserSafety = async (userId) => {
+exports.checkUserSafety = async userId => {
   const reports = await prisma.report.count({
     where: { reportedId: userId, status: { in: ['pending', 'reviewed'] } },
   });
@@ -23,7 +21,7 @@ exports.checkUserSafety = async (userId) => {
   };
 };
 
-exports.getBlockedUsers = async (userId) => {
+exports.getBlockedUsers = async userId => {
   const blocks = await prisma.report.findMany({
     where: {
       reporterId: userId,
@@ -36,18 +34,16 @@ exports.getBlockedUsers = async (userId) => {
       },
     },
   });
-  return blocks.map((b) => b.reported);
+  return blocks.map(b => b.reported);
 };
 
-exports.shouldShowSafetyPrompt = async (userId) => {
+exports.shouldShowSafetyPrompt = async userId => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { createdAt: true },
   });
 
-  const daysSinceRegistration = Math.floor(
-    (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const daysSinceRegistration = Math.floor((Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24));
 
   const matches = await prisma.match.count({
     where: {
@@ -55,14 +51,9 @@ exports.shouldShowSafetyPrompt = async (userId) => {
     },
   });
 
-  const eventsAttending = await prisma.rSVP.count({
-    where: { userId, status: 'going' },
-  });
-
   return {
     showSafetyReminder: daysSinceRegistration <= 7,
     showMeetingSafetyPrompt: matches > 0,
-    showEventSafetyPrompt: eventsAttending > 0,
     daysSinceRegistration,
   };
 };

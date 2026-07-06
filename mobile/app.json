@@ -16,14 +16,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "ke.campusconnect.app"
+      "bundleIdentifier": "app.moyo"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#007AFF"
       },
-      "package": "ke.campusconnect.app"
+      "package": "app.moyo"
     },
     "plugins": [
       "expo-secure-store",

@@ -1,0 +1,29 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true,
+    "jest": true
+  },
+  "extends": ["eslint:recommended", "prettier"],
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "ignoreRestSiblings": true }],
+    "no-console": "off",
+    "eqeqeq": ["error", "always"],
+    "no-var": "error",
+    "prefer-const": "error",
+    "no-process-exit": "warn",
+    "no-throw-literal": "error",
+    "prefer-template": "warn",
+    "radix": ["error", "always"],
+    "curly": ["error", "all"],
+    "no-multiple-empty-lines": ["warn", { "max": 1 }],
+    "semi": ["warn", "always"],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "comma-dangle": ["warn", "always-multiline"],
+    "arrow-parens": ["warn", "as-needed"]
+  }
+}

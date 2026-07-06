@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, useWindowDimensions,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { payments } from '../services/api';
@@ -10,17 +11,83 @@ import { formatPhoneNumber, validatePhoneNumber, PAYMENT_OPTIONS } from '../serv
 
 export default function PaymentScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  useWindowDimensions();
   const matchId = route.params?.matchId || null;
+  const likerId = route.params?.likerId || null;
   const matchName = route.params?.matchName || null;
 
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [selectedPaymentType, setSelectedPaymentType] = useState(matchId ? 'match_unlock' : null);
+  const [selectedPaymentType, setSelectedPaymentType] = useState(matchId ? 'match_unlock' : likerId ? 'like_unlock' : null);
   const [loading, setLoading] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+  const pollingRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) { clearInterval(pollingRef.current); }
+    };
+  }, []);
+
+  const pollStatus = (transactionId) => {
+    setPolling(true);
+    setStatusMsg('Processing payment...');
+    let attempts = 0;
+    pollingRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await payments.getStatus(transactionId);
+        const tx = res.data?.data;
+        if (tx?.status === 'completed') {
+          clearInterval(pollingRef.current);
+          setPolling(false);
+          setStatusMsg('');
+          const unlockedMatchId = selectedPaymentType === 'match_unlock' ? matchId
+            : selectedPaymentType === 'like_unlock' ? tx?.matchId || null
+            : null;
+          Alert.alert(
+            'Payment Successful! 💕',
+            selectedPaymentType === 'match_unlock'
+              ? `You can now chat unlimitedly with ${matchName || 'your match'}!`
+              : selectedPaymentType === 'like_unlock'
+                ? `You liked back and unlocked ${matchName || 'your match'}!`
+                : selectedPaymentType.startsWith('subscription')
+                  ? 'Welcome to Premium! You can now browse all counties and enjoy unlimited features.'
+                  : 'Payment completed successfully!',
+            unlockedMatchId
+              ? [{ text: 'Chat Now', onPress: () => navigation.replace('Chat', { matchId: unlockedMatchId, match: { id: null, name: matchName || 'Match', profilePicUrl: null } }) }]
+              : [{ text: 'Great!', onPress: () => navigation.goBack() }],
+          );
+        } else if (tx?.status === 'failed') {
+          clearInterval(pollingRef.current);
+          setPolling(false);
+          setStatusMsg('');
+          Alert.alert('Payment Failed', 'The payment was not completed. Please try again.');
+        } else if (attempts > 30) {
+          clearInterval(pollingRef.current);
+          setPolling(false);
+          setStatusMsg('');
+          Alert.alert('Timeout', 'Payment is taking longer than expected. Check your M-Pesa and come back.');
+        }
+      } catch {
+        if (attempts > 30) {
+          clearInterval(pollingRef.current);
+          setPolling(false);
+          setStatusMsg('');
+          Alert.alert('Timeout', 'Could not verify payment status. Please check your transactions.');
+        }
+      }
+    }, 2000);
+  };
 
   const availableOptions = matchId
-    ? { match_unlock: { ...PAYMENT_OPTIONS.match_unlock, label: `Unlock ${matchName || 'Match'}` } }
-    : PAYMENT_OPTIONS;
+    ? {
+        match_unlock: { ...PAYMENT_OPTIONS.match_unlock, label: `Unlock ${matchName || 'Match'}` },
+        daily_chat_unlock: { ...PAYMENT_OPTIONS.daily_chat_unlock, label: `Daily Chat - ${matchName || 'Match'}` },
+      }
+    : likerId
+      ? { like_unlock: { amount: 50, label: `Like Back & Unlock ${matchName || ''}`, description: 'Like back and unlock unlimited messaging' } }
+      : Object.fromEntries(Object.entries(PAYMENT_OPTIONS).filter(([k]) => k.startsWith('subscription')));
 
   const handlePayment = async () => {
     if (!selectedPaymentType) {
@@ -35,26 +102,30 @@ export default function PaymentScreen({ route, navigation }) {
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber);
       const payload = { phoneNumber: formattedPhone, type: selectedPaymentType };
-      if (selectedPaymentType === 'match_unlock' && matchId) payload.matchId = matchId;
-      await payments.initiateSTKPush(payload);
-      Alert.alert(
-        'STK Push Sent',
-        'Check your phone for the M-Pesa prompt. Enter your PIN to complete the payment 💕',
-        [{ text: 'OK' }]
-      );
+      if (selectedPaymentType === 'match_unlock' && matchId) {payload.matchId = matchId;}
+      if (selectedPaymentType === 'like_unlock' && likerId) {payload.matchId = likerId;}
+      const res = await payments.initiateSTKPush(payload);
+      setLoading(false);
+      const transactionId = res.data?.data?.transactionId;
+      if (transactionId) {
+        pollStatus(transactionId);
+      } else {
+        Alert.alert('Payment Initiated', 'Check your phone for the M-Pesa prompt 💕');
+      }
     } catch (error) {
+      setLoading(false);
       const message = error.response?.data?.error || 'Payment failed. Please try again.';
       Alert.alert('Error', message);
-    } finally { setLoading(false); }
+    }
   };
 
   return (
     <ScrollView style={[styles.container, { paddingTop: insets.top }]} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
       <View style={styles.headerSection}>
         <View style={styles.logoCircle}><MaterialIcons name="stars" size={36} color="#fff" /></View>
-        <Text style={styles.title}>{matchId ? 'Unlock Love 💕' : 'Find Love Everywhere'}</Text>
+        <Text style={styles.title}>{matchId ? 'Unlock Love 💕' : likerId ? 'Like Back & Unlock 💕' : 'Find Love Everywhere'}</Text>
         <Text style={styles.subtitle}>
-          {matchId ? `Keep chatting with ${matchName || 'your match'} — unlimited messages for only Ksh 50` : 'Go Premium to see profiles from all 47 counties'}
+          {matchId ? `Keep chatting with ${matchName || 'your match'} — unlimited messages` : likerId ? `Like back and start chatting with ${matchName || 'your match'} for only Ksh 50` : 'Go Premium to see profiles from all 47 counties'}
         </Text>
       </View>
 
@@ -68,7 +139,7 @@ export default function PaymentScreen({ route, navigation }) {
             <View style={styles.planHeader}>
               <MaterialIcons name={selectedPaymentType === key ? 'radio-button-checked' : 'radio-button-unchecked'} size={22} color={selectedPaymentType === key ? '#FF2D55' : '#8e8e93'} />
               <Text style={[styles.planName, selectedPaymentType === key && styles.selectedText]}>{plan.label}</Text>
-              <View style={{ flex: 1 }} />
+              <View style={styles.flexSpacer} />
               <Text style={styles.planPrice}>KSh {plan.amount}</Text>
             </View>
             <Text style={styles.planDescription}>{plan.description}</Text>
@@ -80,16 +151,27 @@ export default function PaymentScreen({ route, navigation }) {
         <Text style={styles.label}>M-Pesa Number</Text>
         <View style={styles.inputWrapper}><MaterialIcons name="phone" size={20} color="#FF2D55" style={styles.inputIcon} /><TextInput style={styles.input} placeholder="0712 345 678" placeholderTextColor="#c7c7cc" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" maxLength={12} /></View>
         <Text style={styles.hint}>Your Safaricom number for M-Pesa</Text>
-        <TouchableOpacity style={[styles.payButton, (!selectedPaymentType || loading) && styles.payButtonDisabled]} onPress={handlePayment} disabled={!selectedPaymentType || loading}>
+        <TouchableOpacity style={[styles.payButton, (!selectedPaymentType || loading) && styles.payButtonDisabled]} onPress={(!selectedPaymentType || loading) ? undefined : handlePayment}>
           {loading ? <ActivityIndicator color="#fff" /> : (
             <View style={styles.buttonInner}><MaterialIcons name="payment" size={20} color="#fff" /><Text style={styles.payButtonText}>{selectedPaymentType ? `Pay KSh ${PAYMENT_OPTIONS[selectedPaymentType]?.amount || 50} via M-Pesa` : 'Select an option'}</Text></View>
           )}
         </TouchableOpacity>
-        <View style={styles.info}><MaterialIcons name="info" size={16} color="#8e8e93" /><Text style={styles.infoText}>You'll receive an STK push on your phone. Enter your M-Pesa PIN to complete.</Text></View>
+        {polling && (
+          <View style={styles.pollingRow}>
+            <ActivityIndicator size="small" color="#FF2D55" />
+            <Text style={styles.pollingText}>{statusMsg || 'Processing payment...'}</Text>
+          </View>
+        )}
+        <View style={styles.info}><MaterialIcons name="info" size={16} color="#8e8e93" /><Text style={styles.infoText}>You&apos;ll receive an STK push on your phone. Enter your M-Pesa PIN to complete.</Text></View>
       </View>
     </ScrollView>
   );
 }
+
+PaymentScreen.propTypes = {
+  route: PropTypes.object,
+  navigation: PropTypes.object,
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF5F7' },
@@ -100,6 +182,7 @@ const styles = StyleSheet.create({
   plans: { paddingHorizontal: 20, marginTop: -15, gap: 12, zIndex: 1 },
   planCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 2, borderColor: '#f0d0d8', boxShadow: '0 2px 8px 0 rgba(255,45,85,0.06)' },
   selectedPlan: { borderColor: '#FF2D55', backgroundColor: '#FFF0F3' },
+  flexSpacer: { flex: 1 },
   planHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   planName: { fontSize: 17, fontWeight: 'bold', color: '#1c1c1e' },
   selectedText: { color: '#FF2D55' },
@@ -117,4 +200,6 @@ const styles = StyleSheet.create({
   payButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   info: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 16, gap: 8 },
   infoText: { flex: 1, fontSize: 12, color: '#8e8e93', lineHeight: 18 },
+  pollingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 8 },
+  pollingText: { fontSize: 14, color: '#FF2D55', fontWeight: '600' },
 });
