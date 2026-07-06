@@ -241,7 +241,7 @@ exports.swipe = catchAsync(async (req, res) => {
     throw new AppError('Cannot swipe on yourself', 400);
   }
 
-  const currentUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { tier: true } });
+  const currentUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { tier: true, unlimitedChat: true } });
   if (direction === 'like' || direction === 'superlike') {
     if (direction === 'superlike' && currentUser.tier !== 'PREMIUM') {
       throw new AppError('Superlikes are a Premium feature. Upgrade to use them.', 403);
@@ -482,7 +482,7 @@ exports.sendMessage = catchAsync(async (req, res) => {
   }
 
   try {
-    sendPushNotification(otherUserId, sender.name, content, { matchId, type: 'newMessage' });
+    await sendPushNotification(otherUserId, sender.name, content, { matchId, type: 'newMessage' });
   } catch (err) {
     logger.warn('Push notification failed:', err.message);
   }
@@ -664,9 +664,7 @@ exports.approveLike = catchAsync(async (req, res) => {
   }
 
   const existingMatch = await prisma.match.findFirst({
-    where: {
-      OR: [{ user1Id: Math.min(req.userId, likerId), user2Id: Math.max(req.userId, likerId) }],
-    },
+    where: { user1Id: Math.min(req.userId, likerId), user2Id: Math.max(req.userId, likerId) },
   });
   if (existingMatch) {
     throw new AppError('Already matched', 409);
@@ -676,8 +674,12 @@ exports.approveLike = catchAsync(async (req, res) => {
     where: { swiperId_swipedId: { swiperId: req.userId, swipedId: likerId } },
   });
 
+  const currentUser = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { tier: true, unlimitedChat: true, freeUnlocksRemaining: true },
+  });
+
   if (!existingSwipeBack) {
-  const currentUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { tier: true, unlimitedChat: true } });
     if (currentUser.tier === 'FREE') {
       const likeCount = await prisma.swipe.count({
         where: { swiperId: req.userId, direction: 'like' },
@@ -692,16 +694,11 @@ exports.approveLike = catchAsync(async (req, res) => {
     });
   }
 
-  const currentUserData = await prisma.user.findUnique({
-    where: { id: req.userId },
-    select: { tier: true, unlimitedChat: true, freeUnlocksRemaining: true },
-  });
-
   const match = await prisma.match.create({
     data: {
       user1Id: Math.min(req.userId, likerId),
       user2Id: Math.max(req.userId, likerId),
-      unlocked: currentUserData.tier === 'PREMIUM' || currentUserData.unlimitedChat,
+      unlocked: currentUser.tier === 'PREMIUM' || currentUser.unlimitedChat,
     },
   });
 
@@ -727,7 +724,7 @@ exports.useFreeUnlock = catchAsync(async (req, res) => {
   }
 
   const existingMatch = await prisma.match.findFirst({
-    where: { OR: [{ user1Id: Math.min(req.userId, likerId), user2Id: Math.max(req.userId, likerId) }] },
+    where: { user1Id: Math.min(req.userId, likerId), user2Id: Math.max(req.userId, likerId) },
   });
   if (existingMatch) {
     throw new AppError('Already matched', 409);
@@ -754,7 +751,7 @@ exports.useFreeUnlock = catchAsync(async (req, res) => {
     },
   });
 
-  sendPushNotification(req.userId, "It's a Match! 💕", 'You used a free unlock credit!');
+  await sendPushNotification(req.userId, "It's a Match! 💕", 'You used a free unlock credit!');
   res.json({ success: true, data: { matchId: match.id, unlocked: true } });
 });
 

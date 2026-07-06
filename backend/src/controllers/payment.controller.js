@@ -56,7 +56,7 @@ const applyPaymentBenefit = async (type, userId, matchId) => {
       where: { id: parseInt(matchId, 10) },
       data: { unlocked: true },
     });
-    sendPushNotification(userId, 'Match Unlocked 💕', 'Start chatting unlimitedly!');
+    await sendPushNotification(userId, 'Match Unlocked 💕', 'Start chatting unlimitedly!');
   } else if (type === 'like_unlock' && matchId) {
     const likerId = parseInt(matchId, 10);
     const existingSwipeBack = await prisma.swipe.findUnique({
@@ -77,7 +77,7 @@ const applyPaymentBenefit = async (type, userId, matchId) => {
     } else {
       actualMatchId = existingMatch.id;
     }
-    sendPushNotification(userId, "It's a Match! 💕", 'You liked back and unlocked a new match!');
+    await sendPushNotification(userId, "It's a Match! 💕", 'You liked back and unlocked a new match!');
     return actualMatchId;
   } else if (type === 'daily_chat_unlock') {
     const today = new Date();
@@ -86,7 +86,7 @@ const applyPaymentBenefit = async (type, userId, matchId) => {
       where: { id: userId },
       data: { chatUnlockDate: today },
     });
-    sendPushNotification(userId, 'Daily Chat Unlocked 💕', 'Unlimited chat activated for today!');
+    await sendPushNotification(userId, 'Daily Chat Unlocked 💕', 'Unlimited chat activated for today!');
   } else if (type.startsWith('subscription')) {
     const UNLOCK_CREDITS = {
       subscription_weekly: 1,
@@ -112,9 +112,9 @@ const applyPaymentBenefit = async (type, userId, matchId) => {
       where: { OR: [{ user1Id: userId }, { user2Id: userId }], unlocked: false },
       data: { unlocked: true },
     });
-    sendPushNotification(userId, premium ? 'Welcome to Premium! ✨' : 'Subscription Active 💕', premium ? 'You can now browse all counties and enjoy unlimited features.' : 'Enjoy unlimited chat on all your matches!');
+    await sendPushNotification(userId, premium ? 'Welcome to Premium! ✨' : 'Subscription Active 💕', premium ? 'You can now browse all counties and enjoy unlimited features.' : 'Enjoy unlimited chat on all your matches!');
   } else if (type === 'like_viewer') {
-    sendPushNotification(userId, 'Likes Unlocked 💕', 'You can now see who likes you!');
+    await sendPushNotification(userId, 'Likes Unlocked 💕', 'You can now see who likes you!');
   }
 };
 
