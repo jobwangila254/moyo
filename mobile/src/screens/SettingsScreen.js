@@ -6,7 +6,7 @@ import {
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { users, clearAuthToken } from '../services/api';
+import { users, auth, clearAuthToken } from '../services/api';
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -35,14 +35,17 @@ export default function SettingsScreen({ navigation }) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await users.getSettings();
-        const s = res.data.data;
+        const [settingsRes, meRes] = await Promise.all([
+          users.getSettings(),
+          auth.getMe().catch(() => ({ data: { data: { tier: 'FREE' } } })),
+        ]);
+        const s = settingsRes.data.data;
         setPushNotifications(s.pushNotifications ?? true);
-        setMatchAlerts(s.matchAlerts ?? true);
-        setMessageAlerts(s.messageAlerts ?? true);
+        setMatchAlerts(s.matchNotifications ?? true);
+        setMessageAlerts(s.messageNotifications ?? true);
         setShowAge(s.showAge ?? true);
         setProfileVisible(s.profileVisible ?? true);
-        setUserTier(s.tier || 'FREE');
+        setUserTier(meRes.data.data.tier || 'FREE');
       } catch (error) {
         setFeedback({ type: 'error', message: 'Failed to load settings' });
       } finally {
@@ -84,7 +87,7 @@ export default function SettingsScreen({ navigation }) {
   const handleUnblock = async (userId) => {
     try {
       await users.unblockUser(userId);
-      setBlockedUsers(prev => prev.filter(u => u.id !== userId));
+      setBlockedUsers(prev => prev.filter(u => u.user?.id !== userId));
       setFeedback({ type: 'success', message: 'User unblocked' });
     } catch (error) {
       setFeedback({ type: 'error', message: 'Failed to unblock user' });
@@ -146,8 +149,8 @@ export default function SettingsScreen({ navigation }) {
       <View style={styles.section}>
         <Text style={styles.sectionHeader}>Notifications</Text>
         {renderToggle('Push Notifications', pushNotifications, (v) => handleToggle(setPushNotifications, 'pushNotifications', v))}
-        {renderToggle('Match Alerts', matchAlerts, (v) => handleToggle(setMatchAlerts, 'matchAlerts', v))}
-        {renderToggle('Message Alerts', messageAlerts, (v) => handleToggle(setMessageAlerts, 'messageAlerts', v))}
+        {renderToggle('Match Alerts', matchAlerts, (v) => handleToggle(setMatchAlerts, 'matchNotifications', v))}
+        {renderToggle('Message Alerts', messageAlerts, (v) => handleToggle(setMessageAlerts, 'messageNotifications', v))}
       </View>
 
       <View style={styles.section}>
@@ -218,8 +221,8 @@ export default function SettingsScreen({ navigation }) {
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => (
                   <View style={styles.blockedRow}>
-                    <Text style={styles.blockedName}>{item.name}</Text>
-                    <TouchableOpacity style={styles.unblockBtn} onPress={() => handleUnblock(item.id)}>
+                    <Text style={styles.blockedName}>{item.user?.name || 'Unknown'}</Text>
+                    <TouchableOpacity style={styles.unblockBtn} onPress={() => handleUnblock(item.user?.id)}>
                       <Text style={styles.unblockBtnText}>Unblock</Text>
                     </TouchableOpacity>
                   </View>

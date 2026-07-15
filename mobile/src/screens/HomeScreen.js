@@ -10,6 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import UserCard from '../components/UserCard';
 import TierBadge from '../components/TierBadge';
 import { users, auth, clearAuthToken } from '../services/api';
+import { registerForPushNotifications } from '../services/notifications';
 
 const LIKES_FILTERS = ['Music', 'Travel', 'Food', 'Fitness', 'Movies', 'Reading', 'Art', 'Fashion', 'Tech', 'Nature', 'Photography', 'Dancing', 'Animals', 'Coffee'];
 const HOBBIES_FILTERS = ['Hiking', 'Cooking', 'Gaming', 'Sports', 'Yoga', 'Painting', 'Writing', 'Gardening', 'Cycling', 'Swimming', 'Running', 'Singing', 'Dancing', 'Camping'];
@@ -61,6 +62,7 @@ export default function HomeScreen({ navigation }) {
         auth.getMe(),
       ]);
       setUserData(meRes.data.data);
+      registerForPushNotifications().catch(() => {});
       let allProfiles = profilesRes.data.data || [];
 
       if (filters.occupation) {
@@ -413,6 +415,26 @@ export default function HomeScreen({ navigation }) {
         >
           <MaterialIcons name="star" size={24} color="#fff" />
           <Text style={styles.upgradeText}>Go Premium</Text>
+        </TouchableOpacity>
+      )}
+
+      {userData?.tier === 'PREMIUM' && activeTab === 'discover' && (
+        <TouchableOpacity
+          style={[styles.upgradeFAB, { bottom: Math.max(insets.bottom, 16) + 10, backgroundColor: '#5856D6' }]}
+          onPress={async () => {
+            try {
+              await users.boostProfile();
+              setToast('Profile boosted for 30 minutes!');
+              setTimeout(() => setToast(''), 2500);
+            } catch (e) {
+              const msg = e.response?.status === 403 ? 'Already boosted. Try again later.' : 'Failed to boost profile';
+              setToast(msg);
+              setTimeout(() => setToast(''), 2500);
+            }
+          }}
+        >
+          <MaterialIcons name="bolt" size={24} color="#fff" />
+          <Text style={styles.upgradeText}>Boost</Text>
         </TouchableOpacity>
       )}
 

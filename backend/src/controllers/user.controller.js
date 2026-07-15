@@ -310,6 +310,9 @@ exports.swipe = catchAsync(async (req, res) => {
           unlocked: currentUser.tier === 'PREMIUM' || currentUser.unlimitedChat,
         },
       });
+      const matchedUserId = parseInt(swipedId, 10);
+      const currentUserData = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true } }).catch(() => null);
+      sendPushNotification(matchedUserId, "It's a match! 🎉", `${currentUserData?.name || 'Someone'} liked you back!`, { type: 'match', matchId: match.id }).catch(() => {});
     }
   }
 
@@ -512,11 +515,7 @@ exports.sendMessage = catchAsync(async (req, res) => {
     logger.warn('Socket emit failed for newMessage:', err.message);
   }
 
-  try {
-    await sendPushNotification(otherUserId, sender.name, content, { matchId, type: 'newMessage' });
-  } catch (err) {
-    logger.warn('Push notification failed:', err.message);
-  }
+  sendPushNotification(otherUserId, sender.name, content.trim().substring(0, 100), { type: 'message', matchId }).catch(() => {});
 
   res.status(201).json({ success: true, data: messageWithSender });
 });
@@ -728,6 +727,9 @@ exports.approveLike = catchAsync(async (req, res) => {
       unlocked: currentUser.tier === 'PREMIUM' || currentUser.unlimitedChat,
     },
   });
+
+  const myName = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true } }).catch(() => null);
+  sendPushNotification(likerId, "It's a match! 🎉", `${myName?.name || 'Someone'} liked you back!`, { type: 'match', matchId: match.id }).catch(() => {});
 
   res.json({ success: true, data: { matchId: match.id, unlocked: match.unlocked } });
 });

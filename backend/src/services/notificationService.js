@@ -1,24 +1,24 @@
 const { Expo } = require('expo-server-sdk');
 const logger = require('../utils/logger');
-
-const pushTokens = new Map();
+const { prisma } = require('../prisma');
 
 const expo = new Expo();
 
-function setPushToken(userId, token) {
+async function setPushToken(userId, token) {
   if (token) {
-    pushTokens.set(userId, token);
-  } else {
-    pushTokens.delete(userId);
+    await prisma.user.update({ where: { id: userId }, data: { pushToken: token } }).catch(err => {
+      logger.error(`Failed to store push token for user ${userId}: ${err.message}`);
+    });
   }
 }
 
-function getPushToken(userId) {
-  return pushTokens.get(userId);
+async function getPushToken(userId) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { pushToken: true } }).catch(() => null);
+  return user?.pushToken || null;
 }
 
 async function sendPushNotification(userId, title, body, data = {}) {
-  const pushToken = pushTokens.get(userId);
+  const pushToken = await getPushToken(userId);
   if (!pushToken) {
     logger.debug(`No push token for user ${userId}`);
     return;

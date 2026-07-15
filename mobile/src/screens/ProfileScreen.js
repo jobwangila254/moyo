@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform,
+  ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform, Modal, FlatList,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,12 +36,21 @@ export default function ProfileScreen({ navigation }) {
   const [pendingPhotoRemove, setPendingPhotoRemove] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [profileViews, setProfileViews] = useState([]);
+  const [showProfileViews, setShowProfileViews] = useState(false);
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
     if (!feedback.message) return;
     const timer = setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
     return () => clearTimeout(timer);
   }, [feedback.message]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -309,6 +318,26 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.menuText}>Safety Tips</Text>
           <MaterialIcons name="chevron-right" size={22} color="#8e8e93" />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.menuItem} onPress={async () => {
+          try {
+            const res = await users.getProfileViews();
+            const views = res.data.data || [];
+            if (views.length === 0) {
+              setToast('No profile views yet');
+              setTimeout(() => setToast(''), 2500);
+            } else {
+              setProfileViews(views);
+              setShowProfileViews(true);
+            }
+          } catch {
+            setToast('Failed to load profile views');
+            setTimeout(() => setToast(''), 2500);
+          }
+        }}>
+          <MaterialIcons name="visibility" size={22} color="#FF9500" />
+          <Text style={styles.menuText}>Who Viewed You</Text>
+          <MaterialIcons name="chevron-right" size={22} color="#8e8e93" />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount}>
           <MaterialIcons name="delete-forever" size={22} color="#FF3B30" />
           <Text style={[styles.menuText, styles.deleteText]}>Delete Account</Text>
@@ -327,6 +356,44 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
       </View>
+
+      {toast !== '' && (
+        <View style={styles.toastContainer}>
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      )}
+
+      <Modal visible={showProfileViews} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Who Viewed You</Text>
+              <TouchableOpacity onPress={() => setShowProfileViews(false)}>
+                <MaterialIcons name="close" size={24} color="#1c1c1e" />
+              </TouchableOpacity>
+            </View>
+            {profileViews.length === 0 ? (
+              <Text style={styles.emptyText}>No views yet</Text>
+            ) : (
+              <FlatList
+                data={profileViews}
+                keyExtractor={(item) => String(item.id)}
+                renderItem={({ item }) => (
+                  <View style={styles.viewedRow}>
+                    <View style={styles.viewedAvatar}>
+                      <MaterialIcons name="person" size={24} color="#FF2D55" />
+                    </View>
+                    <View style={styles.viewedInfo}>
+                      <Text style={styles.viewedName}>{item.viewer?.name || 'Someone'}</Text>
+                      <Text style={styles.viewedTime}>{new Date(item.viewedAt).toLocaleDateString()}</Text>
+                    </View>
+                  </View>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -403,4 +470,16 @@ const styles = StyleSheet.create({
   deleteConfirmText: { fontSize: 14, color: '#3a3a3c', marginBottom: 10, lineHeight: 20 },
   confirmBtnDelete: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: '#FF3B30' },
   confirmBtnDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  toastContainer: { position: 'absolute', bottom: 100, alignSelf: 'center', backgroundColor: '#34C759', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
+  toastText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', paddingBottom: 34 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  modalTitle: { fontSize: 17, fontWeight: '600', color: '#1c1c1e' },
+  emptyText: { textAlign: 'center', paddingVertical: 30, fontSize: 15, color: '#8e8e93' },
+  viewedRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f5f5f7', gap: 12 },
+  viewedAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF0F3', justifyContent: 'center', alignItems: 'center' },
+  viewedInfo: { flex: 1 },
+  viewedName: { fontSize: 16, fontWeight: '500', color: '#1c1c1e' },
+  viewedTime: { fontSize: 13, color: '#8e8e93', marginTop: 2 },
 });

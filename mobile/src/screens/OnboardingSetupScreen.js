@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ActivityIndicator, ScrollView, Image, Platform,
+  ActivityIndicator, ScrollView, Image, Platform, useWindowDimensions,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -86,9 +86,9 @@ export default function OnboardingSetupScreen({ navigation }) {
   const handleComplete = async () => {
     setSaving(true);
     try {
-      await users.updateProfile({ bio, likes, hobbies });
+      await users.updateProfile({ bio, likes, hobbies, photos });
       await users.completeOnboarding();
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (error) {
       setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to save profile' });
       setSaving(false);
