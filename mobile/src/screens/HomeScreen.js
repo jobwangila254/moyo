@@ -353,6 +353,9 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
             <MaterialIcons name="person" size={28} color="#FF2D55" />
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+            <MaterialIcons name="settings" size={24} color="#FF2D55" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout}>
             <MaterialIcons name="logout" size={24} color="#FF3B30" />
           </TouchableOpacity>

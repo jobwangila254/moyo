@@ -36,6 +36,9 @@ model User {
   unlimitedChat         Boolean  @default(false)
   chatUnlockDate        DateTime?
   isActive              Boolean  @default(true)
+  onboardingComplete    Boolean  @default(false)
+  boostedUntil          DateTime?
+  photoModerationStatus String   @default("approved")
 
   county    County   @relation(fields: [countyId], references: [id])
   swipesGiven     Swipe[]       @relation("SwipesGiven")
@@ -44,7 +47,13 @@ model User {
   matchesAsUser2  Match[]       @relation("MatchUser2")
   reportsFiled    Report[]      @relation("ReportReporter")
   reportsReceived Report[]      @relation("ReportReported")
+  blocksGiven     Block[]       @relation("BlockBlocker")
+  blocksReceived  Block[]       @relation("BlockBlocked")
+  viewsGiven      ProfileView[] @relation("ViewViewer")
+  viewsReceived   ProfileView[] @relation("ViewViewed")
   transactions    Transaction[]
+  events          UserEvent[]
+  settings        UserSettings?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -119,4 +128,51 @@ model Report {
 
   reporter   User     @relation("ReportReporter", fields: [reporterId], references: [id])
   reported   User     @relation("ReportReported", fields: [reportedId], references: [id])
+}
+
+model Block {
+  id        Int      @id @default(autoincrement())
+  blockerId Int
+  blockedId Int
+  createdAt DateTime @default(now())
+
+  blocker   User     @relation("BlockBlocker", fields: [blockerId], references: [id])
+  blocked   User     @relation("BlockBlocked", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+}
+
+model ProfileView {
+  id        Int      @id @default(autoincrement())
+  viewerId  Int
+  viewedId  Int
+  createdAt DateTime @default(now())
+
+  viewer    User     @relation("ViewViewer", fields: [viewerId], references: [id])
+  viewed    User     @relation("ViewViewed", fields: [viewedId], references: [id])
+
+  @@unique([viewerId, viewedId])
+}
+
+model UserEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  eventType String
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model UserSettings {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @unique
+  pushNotifications  Boolean  @default(true)
+  matchNotifications Boolean  @default(true)
+  messageNotifications Boolean @default(true)
+  showAge            Boolean  @default(true)
+  showDistance       Boolean  @default(true)
+  profileVisible     Boolean  @default(true)
+
+  user               User     @relation(fields: [userId], references: [id])
 }

@@ -202,6 +202,20 @@ export default function ChatScreen({ route, navigation }) {
                       <Text style={[styles.overlayBtnText, { color: '#1c1c1e' }]}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
+                      style={[styles.overlayBtn, { backgroundColor: '#8e8e93' }]}
+                      onPress={async () => {
+                        setReporting(true);
+                        try {
+                          await users.blockUser(match.id);
+                          setShowReportModal(false);
+                          navigation.goBack();
+                        } catch { /* ignore */ }
+                        finally { setReporting(false); }
+                      }}
+                    >
+                      <Text style={styles.overlayBtnText}>Block</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       style={[styles.overlayBtn, { backgroundColor: '#FF3B30' }]}
                       onPress={async () => {
                         setReporting(true);

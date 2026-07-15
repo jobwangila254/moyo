@@ -89,6 +89,15 @@ export const users = {
   deleteAccount: () => api.delete('/users/account'),
   updatePushToken: (token) => api.post('/users/push-token', { token }),
   useFreeUnlock: (likerId) => api.post(`/users/likes/use-free-unlock/${likerId}`),
+  completeOnboarding: () => api.post('/users/complete-onboarding'),
+  getSettings: () => api.get('/users/settings'),
+  updateSettings: (data) => api.put('/users/settings', data),
+  getBlockedUsers: () => api.get('/users/blocks'),
+  unblockUser: (userId) => api.delete(`/users/block/${userId}`),
+  blockUser: (userId) => api.post(`/users/block/${userId}`),
+  getProfileViews: () => api.get('/users/profile-views'),
+  boostProfile: () => api.post('/users/boost'),
+  flagPhoto: (reason) => api.post('/users/flag-photo', { reason }),
 };
 
 export const payments = {

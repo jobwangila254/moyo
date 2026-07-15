@@ -18,6 +18,7 @@ jest.mock('../../src/prisma', () => ({
       findMany: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     message: {
       findMany: jest.fn(),
@@ -30,6 +31,24 @@ jest.mock('../../src/prisma', () => ({
     },
     transaction: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    block: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    },
+    profileView: {
+      upsert: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    userEvent: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
+    county: {
       findMany: jest.fn(),
     },
   },
@@ -77,6 +96,7 @@ describe('User Controller', () => {
       });
       prisma.swipe.findMany.mockResolvedValue([]);
       prisma.report.findMany.mockResolvedValue([]);
+      prisma.block.findMany.mockResolvedValue([]);
       prisma.user.findMany.mockResolvedValue([
         { id: 2, name: 'Jane', age: 25, gender: 'female', likes: '[]', hobbies: '[]', photos: '[]', county: { id: 1, name: 'Nairobi' } },
       ]);
@@ -104,6 +124,7 @@ describe('User Controller', () => {
         id: 2, name: 'Jane', age: 25, gender: 'female', likes: '[]', hobbies: '[]', photos: '[]',
         county: { id: 1, name: 'Nairobi' },
       });
+      prisma.profileView.upsert.mockResolvedValue({});
 
       await userController.getProfileById(req, res, next);
 
@@ -156,9 +177,11 @@ describe('User Controller', () => {
     });
 
     it('creates a like swipe', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 1, tier: 'PREMIUM' });
+      prisma.user.findUnique.mockResolvedValue({ id: 1, tier: 'PREMIUM', unlimitedChat: false });
       prisma.swipe.findUnique.mockResolvedValue(null);
+      prisma.swipe.count.mockResolvedValue(0);
       prisma.swipe.create.mockResolvedValue({ id: 1, swiperId: 1, swipedId: 2, direction: 'like' });
+      prisma.userEvent.create.mockResolvedValue({});
 
       await userController.swipe(req, res, next);
 
@@ -232,8 +255,10 @@ describe('User Controller', () => {
         id: 1, user1Id: 1, user2Id: 2, unlocked: true, user1FreeUsed: 0, user2FreeUsed: 0,
       });
       prisma.report.count.mockResolvedValue(0);
+      prisma.user.findUnique.mockResolvedValueOnce({ unlimitedChat: false, chatUnlockDate: null });
+      prisma.user.findUnique.mockResolvedValueOnce({ name: 'Me' });
       prisma.message.create.mockResolvedValue({ id: 1, matchId: 1, senderId: 1, content: 'Hello!' });
-      prisma.user.findUnique.mockResolvedValue({ name: 'Me' });
+      prisma.userEvent.create.mockResolvedValue({});
 
       await userController.sendMessage(req, res, next);
 

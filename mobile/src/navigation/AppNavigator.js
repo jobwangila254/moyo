@@ -11,6 +11,8 @@ import PaymentScreen from '../screens/PaymentScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import SafetyScreen from '../screens/SafetyScreen';
 import ViewUserScreen from '../screens/ViewUserScreen';
+import OnboardingSetupScreen from '../screens/OnboardingSetupScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import { getItem } from '../services/storage';
 
 const Stack = Platform.OS === 'web'
@@ -100,6 +102,16 @@ export default function AppNavigator() {
         name="ViewUser"
         component={ViewUserScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="OnboardingSetup"
+        component={OnboardingSetupScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: 'Settings' }}
       />
     </Stack.Navigator>
   );

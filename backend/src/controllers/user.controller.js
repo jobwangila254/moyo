@@ -74,6 +74,11 @@ exports.getProfiles = catchAsync(async (req, res) => {
   });
   blockedUsers.forEach(b => excludedIds.push(b.reportedId));
 
+  const blockedByMe = await prisma.block.findMany({ where: { blockerId: req.userId }, select: { blockedId: true } });
+  const blockedMe = await prisma.block.findMany({ where: { blockedId: req.userId }, select: { blockerId: true } });
+  const blockedIds = new Set([...blockedByMe.map(b => b.blockedId), ...blockedMe.map(b => b.blockerId)]);
+  blockedIds.forEach(id => excludedIds.push(id));
+
   if (excludedIds.length > 0) {
     where.id = { ...where.id, notIn: excludedIds };
   }
@@ -95,14 +100,19 @@ exports.getProfiles = catchAsync(async (req, res) => {
         photos: true,
         profilePicUrl: true,
         tier: true,
+        boostedUntil: true,
         county: { select: { id: true, name: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { boostedUntil: 'desc' },
       skip: (pageNum - 1) * PROFILE_PAGE_SIZE,
       take: PROFILE_PAGE_SIZE,
     }),
     prisma.user.count({ where }),
   ]);
+
+  const now = new Date();
+  const myLikes = safeJsonParse(currentUser.likes) || [];
+  const myHobbies = safeJsonParse(currentUser.hobbies) || [];
 
   const parsed = profiles.map(p => ({
     ...p,
@@ -110,6 +120,17 @@ exports.getProfiles = catchAsync(async (req, res) => {
     hobbies: safeJsonParse(p.hobbies),
     photos: safeJsonParse(p.photos),
   }));
+
+  parsed.sort((a, b) => {
+    const aBoosted = a.boostedUntil && a.boostedUntil > now;
+    const bBoosted = b.boostedUntil && b.boostedUntil > now;
+    if (aBoosted && !bBoosted) { return -1; }
+    if (!aBoosted && bBoosted) { return 1; }
+
+    const aShared = (a.likes || []).filter(l => myLikes.includes(l)).length + (a.hobbies || []).filter(h => myHobbies.includes(h)).length;
+    const bShared = (b.likes || []).filter(l => myLikes.includes(l)).length + (b.hobbies || []).filter(h => myHobbies.includes(h)).length;
+    return bShared - aShared;
+  });
 
   res.json({
     success: true,
@@ -149,6 +170,12 @@ exports.getProfileById = catchAsync(async (req, res) => {
   if (!user) {
     throw new AppError('User not found', 404);
   }
+
+  await prisma.profileView.upsert({
+    where: { viewerId_viewedId: { viewerId: req.userId, viewedId: parseInt(req.params.id, 10) } },
+    update: { createdAt: new Date() },
+    create: { viewerId: req.userId, viewedId: parseInt(req.params.id, 10) },
+  }).catch(() => {});
 
   res.json({
     success: true,
@@ -266,6 +293,8 @@ exports.swipe = catchAsync(async (req, res) => {
   await prisma.swipe.create({
     data: { swiperId: req.userId, swipedId: parseInt(swipedId, 10), direction },
   });
+
+  await prisma.userEvent.create({ data: { userId: req.userId, eventType: `swipe_${direction}` } }).catch(() => {});
 
   let match = null;
   if (direction === 'like' || direction === 'superlike') {
@@ -470,6 +499,8 @@ exports.sendMessage = catchAsync(async (req, res) => {
   const message = await prisma.message.create({
     data: { matchId, senderId: req.userId, content: content.trim() },
   });
+
+  await prisma.userEvent.create({ data: { userId: req.userId, eventType: 'message_sent', metadata: JSON.stringify({ matchId }) } }).catch(() => {});
 
   const sender = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true } });
   const messageWithSender = { ...message, senderName: sender.name };
@@ -761,6 +792,30 @@ exports.dismissLike = catchAsync(async (req, res) => {
   res.json({ success: true, message: 'Like dismissed' });
 });
 
+exports.getProfileViews = catchAsync(async (req, res) => {
+  const views = await prisma.profileView.findMany({
+    where: { viewedId: req.userId },
+    include: { viewer: { select: { id: true, name: true, age: true, profilePicUrl: true, county: { select: { name: true } } } } },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+  res.json({ success: true, data: views.map(v => ({ id: v.id, viewer: v.viewer, viewedAt: v.createdAt })) });
+});
+
+exports.boostProfile = catchAsync(async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { tier: true, boostedUntil: true } });
+  if (user.tier !== 'PREMIUM') { throw new AppError('Boosting is a Premium feature', 403); }
+
+  const now = new Date();
+  const isAlreadyBoosted = user.boostedUntil && user.boostedUntil > now;
+  if (isAlreadyBoosted) { throw new AppError('Profile is already boosted', 409); }
+
+  const boostEnd = new Date(now.getTime() + 30 * 60 * 1000);
+  await prisma.user.update({ where: { id: req.userId }, data: { boostedUntil: boostEnd } });
+  await prisma.userEvent.create({ data: { userId: req.userId, eventType: 'profile_boosted' } });
+  res.json({ success: true, message: 'Profile boosted for 30 minutes', data: { boostedUntil: boostEnd } });
+});
+
 exports.deleteAccount = catchAsync(async (req, res) => {
   await prisma.user.update({
     where: { id: req.userId },
@@ -773,4 +828,73 @@ exports.updatePushToken = catchAsync(async (req, res) => {
   const { token } = req.body;
   setPushToken(req.userId, token);
   res.json({ success: true, message: 'Push token updated' });
+});
+
+exports.blockUser = catchAsync(async (req, res) => {
+  const blockedId = parseId(req.params.id);
+  if (blockedId === req.userId) throw new AppError('Cannot block yourself', 400);
+
+  const user = await prisma.user.findUnique({ where: { id: blockedId } });
+  if (!user) throw new AppError('User not found', 404);
+
+  const existing = await prisma.block.findUnique({
+    where: { blockerId_blockedId: { blockerId: req.userId, blockedId } },
+  });
+  if (existing) throw new AppError('Already blocked', 409);
+
+  await prisma.block.create({ data: { blockerId: req.userId, blockedId } });
+  res.json({ success: true, message: 'User blocked' });
+});
+
+exports.unblockUser = catchAsync(async (req, res) => {
+  const blockedId = parseId(req.params.id);
+  await prisma.block.deleteMany({ where: { blockerId: req.userId, blockedId } });
+  res.json({ success: true, message: 'User unblocked' });
+});
+
+exports.getBlockedUsers = catchAsync(async (req, res) => {
+  const blocks = await prisma.block.findMany({
+    where: { blockerId: req.userId },
+    include: { blocked: { select: { id: true, name: true, profilePicUrl: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({ success: true, data: blocks.map(b => ({ id: b.id, user: b.blocked, blockedAt: b.createdAt })) });
+});
+
+exports.getSettings = catchAsync(async (req, res) => {
+  let settings = await prisma.userSettings.findUnique({ where: { userId: req.userId } });
+  if (!settings) {
+    settings = await prisma.userSettings.create({ data: { userId: req.userId } });
+  }
+  res.json({ success: true, data: settings });
+});
+
+exports.updateSettings = catchAsync(async (req, res) => {
+  const { pushNotifications, matchNotifications, messageNotifications, showAge, showDistance, profileVisible } = req.body;
+  const data = {};
+  if (pushNotifications !== undefined) data.pushNotifications = !!pushNotifications;
+  if (matchNotifications !== undefined) data.matchNotifications = !!matchNotifications;
+  if (messageNotifications !== undefined) data.messageNotifications = !!messageNotifications;
+  if (showAge !== undefined) data.showAge = !!showAge;
+  if (showDistance !== undefined) data.showDistance = !!showDistance;
+  if (profileVisible !== undefined) data.profileVisible = !!profileVisible;
+
+  const settings = await prisma.userSettings.upsert({
+    where: { userId: req.userId },
+    update: data,
+    create: { userId: req.userId, ...data },
+  });
+  res.json({ success: true, data: settings });
+});
+
+exports.flagPhoto = catchAsync(async (req, res) => {
+  const { reason } = req.body;
+  await prisma.user.update({ where: { id: req.userId }, data: { photoModerationStatus: 'flagged' } });
+  await prisma.report.create({ data: { reporterId: req.userId, reportedId: req.userId, reason: reason || 'Photo flagged', details: 'Auto-flagged by user' } });
+  res.json({ success: true, message: 'Photo flagged for review' });
+});
+
+exports.completeOnboarding = catchAsync(async (req, res) => {
+  await prisma.user.update({ where: { id: req.userId }, data: { onboardingComplete: true } });
+  res.json({ success: true, message: 'Onboarding completed' });
 });

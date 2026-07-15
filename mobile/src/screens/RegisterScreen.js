@@ -56,7 +56,7 @@ export default function RegisterScreen({ navigation }) {
 
   useEffect(() => {
     if (verified) {
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'OnboardingSetup' }] });
     }
   }, [verified]);
 

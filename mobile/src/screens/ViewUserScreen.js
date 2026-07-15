@@ -210,6 +210,18 @@ export default function ViewUserScreen({ route, navigation }) {
             <Text style={styles.dismissBtnText}>Dismiss</Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          style={styles.blockBtn}
+          onPress={async () => {
+            try {
+              await users.blockUser(userId);
+              navigation.goBack();
+            } catch { /* ignore */ }
+          }}
+        >
+          <MaterialIcons name="block" size={16} color="#8e8e93" />
+          <Text style={styles.blockBtnText}>Block User</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -249,4 +261,6 @@ const styles = StyleSheet.create({
   dismissBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 24, borderWidth: 1, borderColor: '#FF3B30', gap: 8 },
   dismissBtnText: { color: '#FF3B30', fontSize: 16, fontWeight: 'bold' },
   btnDisabled: { opacity: 0.6 },
+  blockBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, paddingVertical: 10 },
+  blockBtnText: { color: '#8e8e93', fontSize: 14 },
 });
