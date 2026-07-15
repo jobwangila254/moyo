@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Image,
+  Modal, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +34,10 @@ export default function ChatScreen({ route, navigation }) {
     canSend: initialUnlocked || (initialFree || 0) > 0,
   });
   const flatListRef = useRef(null);
+  const [showUnlockPrompt, setShowUnlockPrompt] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [reportResult, setReportResult] = useState(null);
 
   const loadMessages = useCallback(async () => {
     try {
@@ -60,7 +64,7 @@ export default function ChatScreen({ route, navigation }) {
     const text = inputText.trim();
     if (!text) {return;}
     if (!quota.canSend) {
-      Alert.alert('Free Messages Used', 'Unlock this match for Ksh 10 or get daily chat for Ksh 30 💕');
+      setShowUnlockPrompt(true);
       return;
     }
     setSending(true);
@@ -77,12 +81,8 @@ export default function ChatScreen({ route, navigation }) {
       const isQuotaError = error.response?.status === 403 || error.response?.data?.data?.quotaExceeded;
       if (isQuotaError) {
         setQuota((prev) => ({ ...prev, myFreeRemaining: 0, canSend: false }));
-        Alert.alert('Free Messages Used', 'Unlock this match or get daily chat to keep messaging 💕', [
-          { text: 'Unlock for Ksh 10', onPress: () => navigation.navigate('Payment', { matchId, matchName: match.name }) },
-          { text: 'Daily for Ksh 30', onPress: () => navigation.navigate('Payment', { matchId, matchName: match.name, paymentType: 'daily_chat_unlock' }) },
-          { text: 'Later', style: 'cancel' },
-        ]);
-      } else { Alert.alert('Error', error.response?.data?.error || 'Failed to send message'); }
+        navigation.navigate('Payment', { matchId, matchName: match.name });
+      }
       setInputText(text);
     } finally { setSending(false); }
   };
@@ -118,15 +118,7 @@ export default function ChatScreen({ route, navigation }) {
         </View>
         <TouchableOpacity
           style={styles.headerAction}
-          onPress={() => Alert.alert('Report User', `Report ${match.name} for inappropriate behavior?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Report', style: 'destructive', onPress: async () => {
-              try {
-                await users.reportUser({ reportedId: match.id, reason: 'Inappropriate behavior', details: 'Reported from chat' });
-                Alert.alert('Reported', 'Thank you. We will review this profile.');
-              } catch { Alert.alert('Error', 'Failed to submit report'); }
-            }},
-          ])}
+          onPress={() => { setReportResult(null); setShowReportModal(true); }}
         >
           <MaterialIcons name="flag" size={22} color="#FF3B30" />
         </TouchableOpacity>
@@ -175,6 +167,84 @@ export default function ChatScreen({ route, navigation }) {
           {sending ? <ActivityIndicator size="small" color="#fff" /> : <MaterialIcons name={quota.canSend ? 'send' : 'lock-open'} size={22} color="#fff" />}
         </TouchableOpacity>
       </View>
+      {showUnlockPrompt && (
+        <View style={styles.overlay}>
+          <View style={styles.overlayCard}>
+            <MaterialIcons name="lock" size={36} color="#FF2D55" />
+            <Text style={styles.overlayTitle}>You&apos;ve used all free messages</Text>
+            <Text style={styles.overlaySubtitle}>Unlock this match for Ksh 10 or get daily chat for Ksh 30 💕</Text>
+            <TouchableOpacity
+              style={styles.overlayBtn}
+              onPress={() => { setShowUnlockPrompt(false); navigation.navigate('Payment', { matchId, type: 'match_unlock' }); }}
+            >
+              <Text style={styles.overlayBtnText}>Unlock Chat - Ksh 10</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowUnlockPrompt(false)}>
+              <Text style={styles.overlayDismiss}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      <Modal visible={showReportModal} transparent animationType="fade" onRequestClose={() => setShowReportModal(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.overlayCard}>
+            {reportResult === null ? (
+              <>
+                <MaterialIcons name="flag" size={36} color="#FF3B30" />
+                <Text style={styles.overlayTitle}>Report User</Text>
+                <Text style={styles.overlaySubtitle}>Report {match.name} for inappropriate behavior?</Text>
+                {reporting ? (
+                  <ActivityIndicator size="large" color="#FF2D55" style={{ marginVertical: 16 }} />
+                ) : (
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                    <TouchableOpacity style={[styles.overlayBtn, { backgroundColor: '#e0e0e0' }]} onPress={() => setShowReportModal(false)}>
+                      <Text style={[styles.overlayBtnText, { color: '#1c1c1e' }]}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.overlayBtn, { backgroundColor: '#FF3B30' }]}
+                      onPress={async () => {
+                        setReporting(true);
+                        try {
+                          await users.reportUser({ reportedId: match.id, reason: 'Inappropriate behavior', details: 'Reported from chat' });
+                          setReportResult('success');
+                        } catch {
+                          setReportResult('error');
+                        } finally { setReporting(false); }
+                      }}
+                    >
+                      <Text style={styles.overlayBtnText}>Report</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            ) : reportResult === 'success' ? (
+              <>
+                <MaterialIcons name="check-circle" size={36} color="#34C759" />
+                <Text style={styles.overlayTitle}>Reported</Text>
+                <Text style={styles.overlaySubtitle}>Thank you. We will review this profile.</Text>
+                <TouchableOpacity style={styles.overlayBtn} onPress={() => { setShowReportModal(false); navigation.goBack(); }}>
+                  <Text style={styles.overlayBtnText}>OK</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <MaterialIcons name="error-outline" size={36} color="#FF3B30" />
+                <Text style={styles.overlayTitle}>Error</Text>
+                <Text style={styles.overlaySubtitle}>Failed to submit report</Text>
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                  <TouchableOpacity style={[styles.overlayBtn, { backgroundColor: '#e0e0e0' }]} onPress={() => setShowReportModal(false)}>
+                    <Text style={[styles.overlayBtnText, { color: '#1c1c1e' }]}>Close</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.overlayBtn} onPress={() => setReportResult(null)}>
+                    <Text style={styles.overlayBtnText}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -217,4 +287,11 @@ const styles = StyleSheet.create({
   textInput: { flex: 1, borderWidth: 1, borderColor: '#f0d0d8', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 16, maxHeight: 100, backgroundColor: '#FFFAFB', color: '#1c1c1e' },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FF2D55', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
   sendBtnDisabled: { opacity: 0.5 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
+  overlayCard: { backgroundColor: '#fff', borderRadius: 16, padding: 28, alignItems: 'center', width: '82%', maxWidth: 340 },
+  overlayTitle: { fontSize: 18, fontWeight: 'bold', color: '#1c1c1e', marginTop: 12 },
+  overlaySubtitle: { fontSize: 14, color: '#8e8e93', marginTop: 6, textAlign: 'center', lineHeight: 20 },
+  overlayBtn: { backgroundColor: '#FF2D55', borderRadius: 22, paddingVertical: 12, paddingHorizontal: 28, marginTop: 16 },
+  overlayBtnText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  overlayDismiss: { fontSize: 14, color: '#8e8e93', marginTop: 12, textDecorationLine: 'underline' },
 });

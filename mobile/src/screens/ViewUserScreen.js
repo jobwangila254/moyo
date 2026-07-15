@@ -1,32 +1,35 @@
 import { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   ScrollView, Image, useWindowDimensions,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { users } from '../services/api';
+import { users, auth } from '../services/api';
 
 export default function ViewUserScreen({ route, navigation }) {
-  const { userId, matched: initialMatched, iLikedBack: initialILikedBack, canApprove: initialCanApprove } = route.params;
+  const { userId } = route.params;
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [matched, setMatched] = useState(!!initialMatched);
-  const [iLikedBack, setILikedBack] = useState(!!initialILikedBack);
   const [actionLoading, setActionLoading] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [myTier, setMyTier] = useState('FREE');
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await users.getProfileById(userId);
-        setUser(res.data.data);
+        const [userRes, meRes] = await Promise.all([
+          users.getProfileById(userId),
+          auth.getMe().catch(() => ({ data: { data: { tier: 'FREE' } } })),
+        ]);
+        setUser(userRes.data.data);
+        setMyTier(meRes.data.data.tier || 'FREE');
       } catch {
-        Alert.alert('Error', 'Failed to load profile');
-        navigation.goBack();
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -34,58 +37,57 @@ export default function ViewUserScreen({ route, navigation }) {
   }, [userId]);
 
   const handleApprove = async () => {
-    if (user?.tier === 'FREE') {
+    setActionLoading(true);
+    if (myTier === 'FREE') {
+      setActionLoading(false);
       navigation.navigate('Payment', { likerId: userId, type: 'like_unlock', matchName: user?.name });
       return;
     }
-    setActionLoading(true);
     try {
       const res = await users.approveLike(userId);
-      const { matchId, unlocked } = res.data.data;
-      setMatched(true);
-      setILikedBack(true);
-      Alert.alert(
-        "It's a Match! 💕",
-        unlocked ? 'Chat is unlocked — say hello!' : 'Chat is locked — unlock for Ksh 10 to start chatting',
-        [
-          { text: 'OK', onPress: () => navigation.goBack() },
-          ...(matchId && !unlocked ? [{ text: 'Unlock for Ksh 10', onPress: () => { navigation.navigate('Payment', { matchId }); } }] : []),
-          ...(matchId ? [{ text: 'Chat', onPress: () => { navigation.navigate('Chat', { matchId, match: { id: userId, name: user?.name, profilePicUrl: user?.profilePicUrl } }); } }] : []),
-        ],
-      );
-    } catch (error) {
-      if (error.response?.status === 403) {
-        Alert.alert('Likes Used Up', 'Free users get 5 likes. Upgrade to Premium for unlimited likes.');
-      } else if (error.response?.status === 409) {
-        Alert.alert('Already Matched', 'You already matched with this user!');
-        setMatched(true);
-      } else if (error.response?.status === 404) {
-        Alert.alert('No Longer Available', 'This like is no longer available.');
-        navigation.goBack();
+      const { matchId } = res.data.data;
+      if (matchId) {
+        navigation.replace('Chat', { matchId, match: { id: userId, name: user?.name, profilePicUrl: user?.profilePicUrl } });
       } else {
-        Alert.alert('Error', error.response?.data?.error || 'Failed to approve');
+        navigation.goBack();
+      }
+    } catch (error) {
+      if (error.response?.status === 409) {
+        navigation.goBack();
+      } else if (error.response?.status === 404) {
+        navigation.goBack();
       }
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleDismiss = () => {
-    Alert.alert('Dismiss Like?', '', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Dismiss', style: 'destructive', onPress: async () => {
-        setActionLoading(true);
-        await users.dismissLike(userId).catch(() => {});
-        setActionLoading(false);
-        navigation.goBack();
-      }},
-    ]);
+  const handleDismiss = async () => {
+    setActionLoading(true);
+    await users.dismissLike(userId).catch(() => {});
+    setActionLoading(false);
+    navigation.goBack();
   };
 
   if (loading) {
     return (
       <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color="#FF2D55" />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+        <MaterialIcons name="error-outline" size={48} color="#FF3B30" />
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1c1c1e', marginTop: 12 }}>Failed to load profile</Text>
+        <TouchableOpacity
+          style={{ marginTop: 20, backgroundColor: '#FF2D55', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 }}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -108,7 +110,6 @@ export default function ViewUserScreen({ route, navigation }) {
           <MaterialIcons name="arrow-back" size={24} color="#FF2D55" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        {matched && <View style={styles.matchedBadge}><Text style={styles.matchedBadgeText}>Matched ✅</Text></View>}
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -185,32 +186,30 @@ export default function ViewUserScreen({ route, navigation }) {
           </View>
         )}
 
-        {!matched && (
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.approveBtn, actionLoading && styles.btnDisabled]}
-              onPress={handleApprove}
-              disabled={actionLoading}
-            >
-              {actionLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <MaterialIcons name="favorite" size={22} color="#fff" />
-                  <Text style={styles.approveBtnText}>Like Back</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.dismissBtn}
-              onPress={handleDismiss}
-              disabled={actionLoading}
-            >
-              <MaterialIcons name="close" size={22} color="#FF3B30" />
-              <Text style={styles.dismissBtnText}>Dismiss</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.approveBtn, actionLoading && styles.btnDisabled]}
+            onPress={handleApprove}
+            disabled={actionLoading}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <MaterialIcons name="favorite" size={22} color="#fff" />
+                <Text style={styles.approveBtnText}>{myTier === 'FREE' ? 'Like Back · Ksh 20' : 'Like Back'}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dismissBtn}
+            onPress={handleDismiss}
+            disabled={actionLoading}
+          >
+            <MaterialIcons name="close" size={22} color="#FF3B30" />
+            <Text style={styles.dismissBtnText}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );

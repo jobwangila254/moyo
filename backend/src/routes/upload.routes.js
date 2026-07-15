@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { upload } = require('../config/cloudinary.config');
+const path = require('path');
+const { upload, useCloudinary } = require('../config/cloudinary.config');
 const { authenticate } = require('../middleware/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
 const logger = require('../utils/logger');
@@ -8,6 +9,13 @@ const { prisma } = require('../prisma');
 const { AppError } = require('../middleware/errorHandler');
 
 const MAX_PHOTOS = 6;
+
+function fileUrl(file) {
+  if (useCloudinary) {
+    return file.path;
+  }
+  return `/api/upload/photos/${file.filename}`;
+}
 
 router.post('/photo', authenticate, (req, res) => {
   upload.single('photo')(req, res, async err => {
@@ -33,22 +41,31 @@ router.post('/photo', authenticate, (req, res) => {
         return res.status(400).json({ success: false, error: `Max ${MAX_PHOTOS} photos allowed` });
       }
 
-      const updated = [...currentPhotos, req.file.path];
+      const url = fileUrl(req.file);
+      const updated = [...currentPhotos, url];
       await prisma.user.update({
         where: { id: req.userId },
         data: {
           photos: JSON.stringify(updated),
-          profilePicUrl: currentPhotos.length === 0 ? req.file.path : undefined,
+          profilePicUrl: currentPhotos.length === 0 ? url : undefined,
         },
       });
 
-      res.json({ success: true, data: { url: req.file.path, photos: updated } });
+      res.json({ success: true, data: { url, photos: updated } });
     } catch (error) {
       logger.error('Photo upload error:', error);
       res.status(500).json({ success: false, error: 'Failed to save photo' });
     }
   });
 });
+
+if (!useCloudinary) {
+  const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+  router.get('/photos/:filename', (req, res) => {
+    const filePath = path.join(uploadsDir, req.params.filename);
+    res.sendFile(filePath);
+  });
+}
 
 router.delete('/photo', authenticate, catchAsync(async (req, res) => {
   const { url } = req.body;

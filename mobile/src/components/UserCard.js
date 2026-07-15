@@ -159,16 +159,14 @@ const UserCard = ({ user, onSwipe, onPress, cardHeight, tier }) => {
           >
             <MaterialIcons name="close" size={36} color="#FF3B30" />
           </TouchableOpacity>
-          {tier === 'PREMIUM' && (
-            <TouchableOpacity
-              style={styles.superlikeButton}
-              onPress={() => triggerSwipe('superlike')}
-              accessibilityLabel="Super like this profile"
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="star" size={30} color="#fff" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.superlikeButton}
+            onPress={() => triggerSwipe('superlike')}
+            accessibilityLabel="Super like this profile"
+            accessibilityRole="button"
+          >
+            <MaterialIcons name="star" size={30} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => triggerSwipe('like')}

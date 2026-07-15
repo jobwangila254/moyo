@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform,
+  ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import TierBadge from '../components/TierBadge';
 import { auth, users, uploadApi, clearAuthToken } from '../services/api';
+
+const LIKES_OPTIONS = ['Music', 'Travel', 'Food', 'Fitness', 'Movies', 'Reading', 'Art', 'Fashion', 'Tech', 'Nature', 'Photography', 'Dancing', 'Animals', 'Coffee'];
+const HOBBIES_OPTIONS = ['Hiking', 'Cooking', 'Gaming', 'Sports', 'Yoga', 'Painting', 'Writing', 'Gardening', 'Cycling', 'Swimming', 'Running', 'Singing', 'Dancing', 'Camping'];
+
+const toArray = (v) => {
+  if (Array.isArray(v)) return v;
+  try { return JSON.parse(v || '[]'); } catch { return []; }
+};
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -20,9 +28,20 @@ export default function ProfileScreen({ navigation }) {
   const [occupation, setOccupation] = useState('');
   const [age, setAge] = useState('');
   const [interestedIn, setInterestedIn] = useState('');
+  const [likes, setLikes] = useState([]);
+  const [hobbies, setHobbies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingPhotoRemove, setPendingPhotoRemove] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
+
+  useEffect(() => {
+    if (!feedback.message) return;
+    const timer = setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
+    return () => clearTimeout(timer);
+  }, [feedback.message]);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -34,6 +53,8 @@ export default function ProfileScreen({ navigation }) {
       setOccupation(data.occupation || '');
       setAge(data.age?.toString() || '');
       setInterestedIn(data.interestedIn || 'both');
+      setLikes(toArray(data.likes));
+      setHobbies(toArray(data.hobbies));
     } catch (error) {
       if (error.response?.status === 401) {
         await clearAuthToken();
@@ -47,20 +68,20 @@ export default function ProfileScreen({ navigation }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = { name, bio, occupation, interestedIn };
+      const payload = { name, bio, occupation, interestedIn, likes, hobbies };
       if (age) {payload.age = parseInt(age, 10);}
       await users.updateProfile(payload);
-      Alert.alert('Updated', "Your heart's profile has been updated 💕");
+      setFeedback({ type: 'success', message: "Your heart's profile has been updated 💕" });
       fetchProfile();
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to update profile');
+      setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to update profile' });
     } finally { setSaving(false); }
   };
 
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Needed', 'We need camera roll access to add photos');
+      setFeedback({ type: 'error', message: 'We need camera roll access to add photos' });
       return;
     }
 
@@ -91,49 +112,46 @@ export default function ProfileScreen({ navigation }) {
       const { photos } = res.data.data;
       setUser(prev => ({ ...prev, photos, profilePicUrl: prev.profilePicUrl || photos[0] }));
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to upload photo');
+      setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to upload photo' });
     } finally { setUploading(false); }
   };
 
   const handleRemovePhoto = (url) => {
-    Alert.alert('Remove Photo?', '', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive',
-        onPress: async () => {
-          try {
-            await uploadApi.deletePhoto(url);
-            const currentPhotos = user?.photos || [];
-            const filtered = currentPhotos.filter(p => p !== url);
-            setUser(prev => ({ ...prev, photos: filtered, profilePicUrl: prev.profilePicUrl === url ? (filtered[0] || null) : prev.profilePicUrl }));
-          } catch (error) {
-            Alert.alert('Error', 'Failed to remove photo');
-          }
-        },
-      },
-    ]);
+    setPendingPhotoRemove(url);
+  };
+
+  const confirmRemovePhoto = async () => {
+    const url = pendingPhotoRemove;
+    setPendingPhotoRemove(null);
+    try {
+      await uploadApi.deletePhoto(url);
+      const currentPhotos = user?.photos || [];
+      const filtered = currentPhotos.filter(p => p !== url);
+      setUser(prev => ({ ...prev, photos: filtered, profilePicUrl: prev.profilePicUrl === url ? (filtered[0] || null) : prev.profilePicUrl }));
+    } catch (error) {
+      setFeedback({ type: 'error', message: 'Failed to remove photo' });
+    }
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert('Leave Us?', 'This breaks our heart. Are you sure?', [
-      { text: 'Stay', style: 'cancel' },
-      {
-        text: 'Leave', style: 'destructive',
-        onPress: async () => {
-          try {
-            await users.deleteAccount();
-            await clearAuthToken();
-            navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
-          } catch (error) { Alert.alert('Error', 'Failed to delete account'); }
-        },
-      },
-    ]);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    setShowDeleteConfirm(false);
+    try {
+      await users.deleteAccount();
+      await clearAuthToken();
+      navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
+    } catch (error) {
+      setFeedback({ type: 'error', message: 'Failed to delete account' });
+    }
   };
 
   const photos = user?.photos || [];
   const avatarUrl = photos.length > 0 ? photos[0] : user?.profilePicUrl || 'https://via.placeholder.com/150';
-  const likes = user?.likes || [];
-  const hobbies = user?.hobbies || [];
+  const userLikes = user?.likes || [];
+  const userHobbies = user?.hobbies || [];
 
   if (loading) {
     return <View style={[styles.loadingContainer, { paddingTop: height * 0.2 }]}><ActivityIndicator size="large" color="#FF2D55" /></View>;
@@ -141,6 +159,24 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <ScrollView style={[styles.container, { paddingTop: insets.top }]}>
+      {feedback.message ? (
+        <View style={[styles.feedbackBanner, feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess]}>
+          <Text style={[styles.feedbackText, feedback.type === 'error' ? styles.feedbackTextError : styles.feedbackTextSuccess]}>{feedback.message}</Text>
+        </View>
+      ) : null}
+      {pendingPhotoRemove !== null && (
+        <View style={styles.confirmBanner}>
+          <Text style={styles.confirmText}>Remove this photo?</Text>
+          <View style={styles.confirmButtons}>
+            <TouchableOpacity style={styles.confirmBtnCancel} onPress={() => setPendingPhotoRemove(null)}>
+              <Text style={styles.confirmBtnCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.confirmBtnRemove} onPress={confirmRemovePhoto}>
+              <Text style={styles.confirmBtnRemoveText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
       <View style={styles.profileHeader}>
         <Image source={{ uri: avatarUrl }} style={styles.avatar} />
         {photos.length > 0 && (
@@ -173,19 +209,19 @@ export default function ProfileScreen({ navigation }) {
         {user?.age && <View style={styles.infoRow}><MaterialIcons name="cake" size={16} color="#8e8e93" /><Text style={styles.infoText}>{user.age} years young</Text></View>}
         {user?.occupation && <View style={styles.infoRow}><MaterialIcons name="work" size={16} color="#8e8e93" /><Text style={styles.infoText}>{user.occupation}</Text></View>}
         {user?.interestedIn && <View style={styles.infoRow}><MaterialIcons name="favorite" size={16} color="#FF2D55" /><Text style={styles.infoText}>Interested in {user.interestedIn === 'both' ? 'Everyone' : user.interestedIn === 'male' ? 'Men' : 'Women'}</Text></View>}
-        {likes.length > 0 && (
+        {userLikes.length > 0 && (
           <View style={styles.tagsSection}>
             <Text style={styles.tagsLabel}>Likes ❤️</Text>
             <View style={styles.tagsRow}>
-              {likes.map(l => <View key={l} style={styles.likeTag}><Text style={styles.likeTagText}>{l}</Text></View>)}
+              {userLikes.map(l => <View key={l} style={styles.likeTag}><Text style={styles.likeTagText}>{l}</Text></View>)}
             </View>
           </View>
         )}
-        {hobbies.length > 0 && (
+        {userHobbies.length > 0 && (
           <View style={styles.tagsSection}>
             <Text style={styles.tagsLabel}>Hobbies ⭐</Text>
             <View style={styles.tagsRow}>
-              {hobbies.map(h => <View key={h} style={styles.hobbyTag}><Text style={styles.hobbyTagText}>{h}</Text></View>)}
+              {userHobbies.map(h => <View key={h} style={styles.hobbyTag}><Text style={styles.hobbyTagText}>{h}</Text></View>)}
             </View>
           </View>
         )}
@@ -216,6 +252,30 @@ export default function ProfileScreen({ navigation }) {
               <Text style={[styles.chipText, interestedIn === val && styles.chipTextActive]}>
                 {val === 'male' ? 'Men' : val === 'female' ? 'Women' : 'Everyone'}
               </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={styles.label}>Likes ❤️</Text>
+        <View style={styles.chipsRow}>
+          {LIKES_OPTIONS.map(l => (
+            <TouchableOpacity
+              key={l}
+              style={[styles.chip, likes.includes(l) && styles.chipActive]}
+              onPress={() => setLikes(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l])}
+            >
+              <Text style={[styles.chipText, likes.includes(l) && styles.chipTextActive]}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={styles.label}>Hobbies ⭐</Text>
+        <View style={styles.chipsRow}>
+          {HOBBIES_OPTIONS.map(h => (
+            <TouchableOpacity
+              key={h}
+              style={[styles.chip, hobbies.includes(h) && styles.chipHobbyActive]}
+              onPress={() => setHobbies(prev => prev.includes(h) ? prev.filter(x => x !== h) : [...prev, h])}
+            >
+              <Text style={[styles.chipText, hobbies.includes(h) && styles.chipTextHobbyActive]}>{h}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -253,6 +313,19 @@ export default function ProfileScreen({ navigation }) {
           <MaterialIcons name="delete-forever" size={22} color="#FF3B30" />
           <Text style={[styles.menuText, styles.deleteText]}>Delete Account</Text>
         </TouchableOpacity>
+        {showDeleteConfirm && (
+          <View style={styles.deleteConfirmBox}>
+            <Text style={styles.deleteConfirmText}>Are you sure you want to delete your account? This cannot be undone.</Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity style={styles.confirmBtnCancel} onPress={() => setShowDeleteConfirm(false)}>
+                <Text style={styles.confirmBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtnDelete} onPress={confirmDeleteAccount}>
+                <Text style={styles.confirmBtnDeleteText}>Delete Account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -309,6 +382,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 7, backgroundColor: '#FFFAFB',
   },
   chipActive: { borderColor: '#FF2D55', backgroundColor: '#FFF0F3' },
+  chipHobbyActive: { borderColor: '#5856D6', backgroundColor: '#F5F3FF' },
   chipText: { fontSize: 13, color: '#8e8e93' },
   chipTextActive: { color: '#FF2D55', fontWeight: '600' },
+  chipTextHobbyActive: { color: '#5856D6', fontWeight: '600' },
+  feedbackBanner: { paddingHorizontal: 20, paddingVertical: 12, marginHorizontal: 15, marginTop: 10, borderRadius: 10 },
+  feedbackSuccess: { backgroundColor: '#E8F5E9' },
+  feedbackError: { backgroundColor: '#FFEBEE' },
+  feedbackText: { fontSize: 14, fontWeight: '500', textAlign: 'center' },
+  feedbackTextSuccess: { color: '#2E7D32' },
+  feedbackTextError: { color: '#C62828' },
+  confirmBanner: { backgroundColor: '#FFF3E0', marginHorizontal: 15, marginTop: 10, padding: 14, borderRadius: 10, alignItems: 'center' },
+  confirmText: { fontSize: 14, fontWeight: '600', color: '#3a3a3c', marginBottom: 10 },
+  confirmButtons: { flexDirection: 'row', gap: 10 },
+  confirmBtnCancel: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f0f0f0' },
+  confirmBtnCancelText: { fontSize: 14, fontWeight: '500', color: '#3a3a3c' },
+  confirmBtnRemove: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: '#FF3B30' },
+  confirmBtnRemoveText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  deleteConfirmBox: { backgroundColor: '#FFF5F5', padding: 14, borderRadius: 10, marginTop: 10, borderWidth: 1, borderColor: '#FFD0D0' },
+  deleteConfirmText: { fontSize: 14, color: '#3a3a3c', marginBottom: 10, lineHeight: 20 },
+  confirmBtnDelete: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: '#FF3B30' },
+  confirmBtnDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });

@@ -7,7 +7,7 @@ const { sendPushNotification } = require('../services/notificationService');
 
 const MATCH_UNLOCK_PRICE = 10;
 const LIKE_VIEWER_PRICE = 50;
-const LIKE_UNLOCK_PRICE = 50;
+const LIKE_UNLOCK_PRICE = 20;
 const PRICES = {
   match_unlock: MATCH_UNLOCK_PRICE,
   like_viewer: LIKE_VIEWER_PRICE,
@@ -75,9 +75,12 @@ const applyPaymentBenefit = async (type, userId, matchId) => {
       const newMatch = await prisma.match.create({ data: { user1Id: u1, user2Id: u2, unlocked: true } });
       actualMatchId = newMatch.id;
     } else {
+      if (!existingMatch.unlocked) {
+        await prisma.match.update({ where: { id: existingMatch.id }, data: { unlocked: true } });
+      }
       actualMatchId = existingMatch.id;
     }
-    await sendPushNotification(userId, "It's a Match! 💕", 'You liked back and unlocked a new match!');
+    await sendPushNotification(userId, 'Like Revealed! 💕', 'Check out who liked you and match!');
     return actualMatchId;
   } else if (type === 'daily_chat_unlock') {
     const today = new Date();
@@ -96,8 +99,8 @@ const applyPaymentBenefit = async (type, userId, matchId) => {
       subscription_yearly: 999,
     };
     const TIER_UPGRADES = {
-      subscription_weekly: false,
-      subscription_fortnightly: false,
+      subscription_weekly: true,
+      subscription_fortnightly: true,
       subscription_monthly: true,
       subscription_halfyear: true,
       subscription_yearly: true,
@@ -236,10 +239,16 @@ exports.initiateSTKPush = catchAsync(async (req, res) => {
       try {
         await processPayment(transaction, type, matchId, req.userId);
         logger.info(
-          `  → ${type === 'match_unlock' ? `Match ${matchId} unlocked` : type.startsWith('subscription') ? `User ${req.userId} upgraded to PREMIUM (${type})` : `Like viewer access granted for user ${req.userId}`}`,
+          `  → ${type === 'match_unlock' ? `Match ${matchId} unlocked` : type === 'like_unlock' ? `Like back completed for user ${req.userId}` : type.startsWith('subscription') ? `User ${req.userId} upgraded to PREMIUM (${type})` : `Like viewer access granted for user ${req.userId}`}`,
         );
       } catch (err) {
         logger.error('Callback processing error:', err);
+        try {
+          await prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { status: 'failed' },
+          });
+        } catch { /* ignore */ }
       }
     }, 3000);
 

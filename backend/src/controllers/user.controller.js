@@ -579,17 +579,7 @@ exports.getLikesSent = catchAsync(async (req, res) => {
 
 exports.getLikesReceived = catchAsync(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { tier: true } });
-  const canView = user.tier === 'PREMIUM';
-
-  if (!canView) {
-    const paid = await prisma.transaction.findFirst({
-      where: { userId: req.userId, type: 'like_viewer', status: 'completed' },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!paid) {
-      return res.json({ success: true, data: { requiresPayment: true, likes: [] } });
-    }
-  }
+  const isPremium = user.tier === 'PREMIUM';
 
   const incoming = await prisma.swipe.findMany({
     where: { swipedId: req.userId, direction: 'like' },
@@ -612,7 +602,11 @@ exports.getLikesReceived = catchAsync(async (req, res) => {
     take: 100,
   });
 
-  const matchPairs = incoming.length > 0 ? await prisma.match.findMany({
+  if (incoming.length === 0) {
+    return res.json({ success: true, data: { likes: [] } });
+  }
+
+  const matchPairs = await prisma.match.findMany({
     where: {
       OR: incoming.map(l => ({
         OR: [
@@ -621,36 +615,38 @@ exports.getLikesReceived = catchAsync(async (req, res) => {
         ],
       })),
     },
-    select: { id: true, user1Id: true, user2Id: true, unlocked: true, matchedAt: true },
-  }) : [];
-
-  const myLikesBack = await prisma.swipe.findMany({
-    where: { swiperId: req.userId, direction: 'like' },
-    select: { swipedId: true },
-  });
-  const likedBackIds = new Set(myLikesBack.map(l => l.swipedId));
-
-  const enriched = incoming.map(l => {
-    const m = matchPairs.find(
-      mp =>
-        (mp.user1Id === req.userId && mp.user2Id === l.swiperId) ||
-        (mp.user2Id === req.userId && mp.user1Id === l.swiperId),
-    );
-    const iLikedBack = likedBackIds.has(l.swiperId);
-    return {
-      id: l.id,
-      user: l.swiper,
-      likedAt: l.createdAt,
-      matched: !!m,
-      matchId: m?.id || null,
-      unlocked: m?.unlocked || false,
-      matchedAt: m?.matchedAt || null,
-      iLikedBack,
-      canApprove: iLikedBack && !m,
-    };
+    select: { user1Id: true, user2Id: true },
   });
 
-  res.json({ success: true, data: { requiresPayment: false, likes: enriched } });
+  const matchedIds = new Set(
+    matchPairs.flatMap(m => [m.user1Id, m.user2Id]).filter(id => id !== req.userId),
+  );
+
+  const revealedTransactions = await prisma.transaction.findMany({
+    where: {
+      userId: req.userId,
+      type: 'like_unlock',
+      status: 'completed',
+    },
+    select: { matchId: true },
+  });
+  const revealedLikerIds = new Set(revealedTransactions.map(t => t.matchId).filter(Boolean));
+
+  const likes = incoming
+    .filter(l => !matchedIds.has(l.swiperId))
+    .map(l => {
+      const revealed = isPremium || revealedLikerIds.has(l.swiperId);
+      return {
+        id: l.id,
+        user: revealed
+          ? l.swiper
+          : { id: l.swiper.id, name: null, age: null, profilePicUrl: null, tier: null, county: null },
+        likedAt: l.createdAt,
+        revealed,
+      };
+    });
+
+  res.json({ success: true, data: { likes } });
 });
 
 exports.approveLike = catchAsync(async (req, res) => {

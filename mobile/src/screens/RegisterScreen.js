@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, Modal, FlatList, useWindowDimensions, Image, Platform,
+  ActivityIndicator, ScrollView, Modal, FlatList, useWindowDimensions, Image, Platform,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import * as ImagePicker from 'expo-image-picker';
@@ -50,6 +50,15 @@ export default function RegisterScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [photos, setPhotos] = useState([]);
   const [, setUploadingPhotos] = useState(false);
+  const [error, setError] = useState('');
+  const [sentMessage, setSentMessage] = useState('');
+  const [verified, setVerified] = useState(false);
+
+  useEffect(() => {
+    if (verified) {
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    }
+  }, [verified]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,17 +85,19 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const handleRegister = async () => {
+    setError('');
+    setSentMessage('');
     if (!phone || !password || !name || !age || !gender || !countyId) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      setError('Please fill in all required fields');
       return;
     }
     if (phone.length < 10) {
-      Alert.alert('Error', 'Please enter a valid phone number (e.g. 0712345678)');
+      setError('Please enter a valid phone number (e.g. 0712345678)');
       return;
     }
     const parsedAge = parseInt(age, 10);
     if (isNaN(parsedAge) || parsedAge < 18 || parsedAge > 120) {
-      Alert.alert('Error', 'Please enter a valid age (18-120)');
+      setError('Please enter a valid age (18-120)');
       return;
     }
 
@@ -101,15 +112,16 @@ export default function RegisterScreen({ navigation }) {
       setStep(2);
     } catch (error) {
       const msg = error.response?.data?.error || 'Registration failed';
-      Alert.alert('Error', msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerify = async () => {
+    setError('');
     if (!code) {
-      Alert.alert('Error', 'Please enter the verification code');
+      setError('Please enter the verification code');
       return;
     }
     setLoading(true);
@@ -137,12 +149,10 @@ export default function RegisterScreen({ navigation }) {
           setUploadingPhotos(false);
         }
       }
-      Alert.alert('Welcome to Moyo', 'Your heart\'s journey begins now 💕', [
-        { text: 'Let\'s Go', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Home' }] }) },
-      ]);
+      setVerified(true);
     } catch (error) {
       const msg = error.response?.data?.error || 'Verification failed';
-      Alert.alert('Error', msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -165,12 +175,14 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const handleResend = async () => {
+    setError('');
+    setSentMessage('');
     setLoading(true);
     try {
       await auth.resendCode(phone);
-      Alert.alert('Sent', 'A new verification code has been sent to your phone');
+      setSentMessage('Code sent!');
     } catch (error) {
-      Alert.alert('Error', 'Failed to resend code');
+      setError('Failed to resend code');
     } finally {
       setLoading(false);
     }
@@ -213,6 +225,8 @@ export default function RegisterScreen({ navigation }) {
                 </View>
               )}
             </TouchableOpacity>
+            {error ? <Text style={{color:'red',textAlign:'center',marginTop:8}}>{error}</Text> : null}
+            {sentMessage ? <Text style={{color:'green',textAlign:'center',marginTop:8}}>{sentMessage}</Text> : null}
             <TouchableOpacity style={styles.resendButton} onPress={handleResend} disabled={loading}>
               <Text style={styles.resendText}>Resend code</Text>
             </TouchableOpacity>
@@ -373,6 +387,7 @@ export default function RegisterScreen({ navigation }) {
                 </View>
               )}
             </TouchableOpacity>
+            {error ? <Text style={{color:'red',textAlign:'center',marginTop:8}}>{error}</Text> : null}
           </View>
         </View>
 

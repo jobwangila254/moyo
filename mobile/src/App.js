@@ -4,11 +4,10 @@ import 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { registerRootComponent } from 'expo';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppNavigator from './navigation/AppNavigator';
 
-function App() {
+export default function App() {
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.body.style.overflow = 'auto';
@@ -31,5 +30,3 @@ function App() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
 });
-
-registerRootComponent(App);

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, Linking,
+  ActivityIndicator, ScrollView, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -12,13 +12,14 @@ export default function SafetyScreen() {
   const insets = useSafeAreaInsets();
   const [safetyData, setSafetyData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [callingContact, setCallingContact] = useState(null);
 
   const loadSafetyData = useCallback(async () => {
     try {
       const res = await users.getSafetyStatus();
       setSafetyData(res.data.data);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load safety information');
+    } catch {
+      // silently ignore load errors
     } finally {
       setLoading(false);
     }
@@ -27,14 +28,7 @@ export default function SafetyScreen() {
   useFocusEffect(useCallback(() => { loadSafetyData(); }, [loadSafetyData]));
 
   const handleCall = (contact) => {
-    Alert.alert(
-      contact.name,
-      contact.phone,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Call', onPress: () => Linking.openURL(`tel:${contact.phone}`) },
-      ],
-    );
+    setCallingContact(contact);
   };
 
   if (loading) {
@@ -72,6 +66,25 @@ export default function SafetyScreen() {
       {safetyData?.emergencyContacts?.length > 0 && (
         <View style={[styles.card, styles.lastCard]}>
           <Text style={styles.sectionTitle}>Emergency Contacts</Text>
+          {callingContact && (
+            <View style={styles.callConfirm}>
+              <Text style={styles.callConfirmText}>Call {callingContact.name}?</Text>
+              <View style={styles.callConfirmActions}>
+                <TouchableOpacity
+                  style={styles.callConfirmBtn}
+                  onPress={() => { Linking.openURL(`tel:${callingContact.phone}`); setCallingContact(null); }}
+                >
+                  <Text style={styles.callConfirmBtnText}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.callConfirmBtn, styles.callConfirmCancel]}
+                  onPress={() => setCallingContact(null)}
+                >
+                  <Text style={[styles.callConfirmBtnText, styles.callConfirmCancelText]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           {safetyData.emergencyContacts.map((contact, idx) => (
             <TouchableOpacity
               key={idx}
@@ -138,4 +151,11 @@ const styles = StyleSheet.create({
   contactInfo: { flex: 1 },
   contactName: { fontSize: 16, fontWeight: '600', color: '#1c1c1e' },
   contactPhone: { fontSize: 14, color: '#8e8e93', marginTop: 2 },
+  callConfirm: { backgroundColor: '#FFF5F7', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#f0d0d8' },
+  callConfirmText: { fontSize: 16, fontWeight: '600', color: '#1c1c1e', textAlign: 'center', marginBottom: 12 },
+  callConfirmActions: { flexDirection: 'row', gap: 12, justifyContent: 'center' },
+  callConfirmBtn: { backgroundColor: '#34C759', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
+  callConfirmBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  callConfirmCancel: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#d0d0d0' },
+  callConfirmCancelText: { color: '#3a3a3c' },
 });

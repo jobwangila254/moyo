@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   RefreshControl, ScrollView, Image, TextInput, useWindowDimensions, Modal, FlatList, SafeAreaView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +29,10 @@ export default function HomeScreen({ navigation }) {
   const [showCountyFilter, setShowCountyFilter] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [matchModal, setMatchModal] = useState({ visible: false, matchId: null, matchName: '', matchPic: '' });
+  const [showLikeLimitModal, setShowLikeLimitModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [toast, setToast] = useState('');
+  const toastTimeoutRef = useRef(null);
 
   const [filters, setFilters] = useState({
     countyId: '',
@@ -100,7 +104,9 @@ export default function HomeScreen({ navigation }) {
     try {
       const res = await users.swipe({ swipedId, direction });
       if (direction === 'superlike') {
-        Alert.alert('Superlike Sent!', 'They\'ll know you\'re really interested 💫');
+        setToast('Superlike Sent! They\'ll know you\'re really interested 💫');
+        if (toastTimeoutRef.current) {clearTimeout(toastTimeoutRef.current);}
+        toastTimeoutRef.current = setTimeout(() => setToast(''), 2500);
       }
       const matchData = res.data?.data;
       if (matchData?.matchId) {
@@ -117,7 +123,14 @@ export default function HomeScreen({ navigation }) {
     } catch (error) {
       if (error.response?.status === 409) {setCurrentIndex((prev) => prev + 1);}
       else if (error.response?.status === 403) {
-        Alert.alert('Likes Used Up', error.response?.data?.error || 'Free users get 5 likes. Upgrade to Premium for unlimited likes.');
+        const msg = error.response?.data?.message || '';
+        if (msg.toLowerCase().includes('superlike')) {
+          setToast('Superlikes are a Premium feature');
+          if (toastTimeoutRef.current) {clearTimeout(toastTimeoutRef.current);}
+          toastTimeoutRef.current = setTimeout(() => setToast(''), 2500);
+        } else {
+          setShowLikeLimitModal(true);
+        }
       }
     }
   };
@@ -390,18 +403,17 @@ export default function HomeScreen({ navigation }) {
 
       {activeTab === 'matches' && renderMatches()}
 
-      <TouchableOpacity
-        style={[styles.upgradeFAB, { bottom: Math.max(insets.bottom, 16) + 10 }]}
-        onPress={userData?.tier === 'PREMIUM' && profiles[currentIndex]
-          ? () => handleSwipe('superlike', profiles[currentIndex].id)
-          : () => navigation.navigate('Payment', { matchId: null })
-        }
-      >
-        <MaterialIcons name="star" size={24} color="#fff" />
-        <Text style={styles.upgradeText}>
-          {userData?.tier === 'PREMIUM' ? 'Superlike' : 'Go Premium'}
-        </Text>
-      </TouchableOpacity>
+      {userData?.tier !== 'PREMIUM' && activeTab === 'discover' && (
+        <TouchableOpacity
+          style={[styles.upgradeFAB, { bottom: Math.max(insets.bottom, 16) + 10 }]}
+          onPress={() => navigation.navigate('Payment', { matchId: null })}
+        >
+          <MaterialIcons name="star" size={24} color="#fff" />
+          <Text style={styles.upgradeText}>Go Premium</Text>
+        </TouchableOpacity>
+      )}
+
+
 
       {renderFilterPanel()}
 
@@ -439,7 +451,7 @@ export default function HomeScreen({ navigation }) {
       <Modal visible={!!selectedProfile} transparent animationType="fade">
         <SafeAreaView style={styles.profileModalOverlay}>
           <ScrollView style={styles.profileModalContent}>
-            <TouchableOpacity style={styles.profileModalClose} onPress={() => setSelectedProfile(null)}>
+            <TouchableOpacity style={styles.profileModalClose} onPress={() => { setSelectedProfile(null); setShowReportModal(false); }}>
               <MaterialIcons name="close" size={28} color="#fff" />
             </TouchableOpacity>
             {selectedProfile && (
@@ -502,20 +514,7 @@ export default function HomeScreen({ navigation }) {
                   <TouchableOpacity
                     style={styles.reportButton}
                     onPress={() => {
-                      setSelectedProfile(null);
-                      Alert.alert('Report User', 'Are you sure you want to report this user?', [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Report',
-                          style: 'destructive',
-                          onPress: async () => {
-                            try {
-                              await users.reportUser({ reportedId: selectedProfile.id, reason: 'Inappropriate behavior', details: 'Reported from profile' });
-                              Alert.alert('Reported', 'Thank you. We will review this profile.');
-                            } catch { Alert.alert('Error', 'Failed to submit report'); }
-                          },
-                        },
-                      ]);
+                      setShowReportModal(true);
                     }}
                   >
                     <MaterialIcons name="flag" size={16} color="#FF3B30" />
@@ -568,6 +567,64 @@ export default function HomeScreen({ navigation }) {
           </View>
         </SafeAreaView>
       </Modal>
+
+      {toast !== '' && (
+        <View style={styles.toastContainer}>
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      )}
+
+      <Modal visible={showLikeLimitModal} transparent animationType="fade">
+        <View style={styles.centerModalOverlay}>
+          <View style={styles.centerModalContent}>
+            <MaterialIcons name="favorite-border" size={48} color="#FF2D55" />
+            <Text style={styles.centerModalTitle}>Likes Used Up</Text>
+            <Text style={styles.centerModalBody}>You&apos;ve used all your free likes. Upgrade to Premium for unlimited likes.</Text>
+            <TouchableOpacity
+              style={styles.centerModalPrimary}
+              onPress={() => { setShowLikeLimitModal(false); navigation.navigate('Payment', { matchId: null }); }}
+            >
+              <Text style={styles.centerModalPrimaryText}>Upgrade to Premium</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.centerModalSecondary}
+              onPress={() => setShowLikeLimitModal(false)}
+            >
+              <Text style={styles.centerModalSecondaryText}>Maybe Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showReportModal} transparent animationType="fade">
+        <View style={styles.centerModalOverlay}>
+          <View style={styles.centerModalContent}>
+            <MaterialIcons name="flag" size={48} color="#FF3B30" />
+            <Text style={styles.centerModalTitle}>Report User</Text>
+            <Text style={styles.centerModalBody}>Are you sure you want to report this user?</Text>
+            <View style={styles.centerModalButtons}>
+              <TouchableOpacity
+                style={styles.reportModalConfirm}
+                onPress={async () => {
+                  try {
+                    await users.reportUser({ reportedId: selectedProfile.id, reason: 'Inappropriate behavior', details: 'Reported from profile' });
+                  } catch { /* ignore */ }
+                  setSelectedProfile(null);
+                  setShowReportModal(false);
+                }}
+              >
+                <Text style={styles.reportModalConfirmText}>Report</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.centerModalSecondary}
+                onPress={() => setShowReportModal(false)}
+              >
+                <Text style={styles.centerModalSecondaryText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -605,6 +662,12 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 14, color: '#8e8e93' },
   activeTabText: { color: '#FF2D55', fontWeight: '600' },
   content: { flex: 1 },
+  upgradeFAB: {
+    position: 'absolute', right: 20, backgroundColor: '#5856D6',
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12,
+    borderRadius: 25, gap: 8, boxShadow: '0 4px 8px 0 rgba(0,0,0,0.3)', elevation: 8,
+  },
+  upgradeText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 100, paddingHorizontal: 40 },
   emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#1c1c1e', marginTop: 15 },
   emptySubtitle: { fontSize: 14, color: '#8e8e93', textAlign: 'center', marginTop: 8 },
@@ -624,12 +687,7 @@ const styles = StyleSheet.create({
   matchQuota: { fontSize: 12, color: '#FF9500', marginTop: 2, fontWeight: '600' },
   matchUnlocked: { fontSize: 12, color: '#34C759', marginTop: 2, fontWeight: '600' },
   matchArrow: { marginLeft: 8 },
-  upgradeFAB: {
-    position: 'absolute', right: 20, backgroundColor: '#5856D6',
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12,
-    borderRadius: 25, gap: 8,     boxShadow: '0 4px 8px 0 rgba(0,0,0,0.3)', elevation: 8,
-  },
-  upgradeText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   filterModal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', paddingBottom: 34 },
   filterHeader: {
@@ -673,7 +731,7 @@ const styles = StyleSheet.create({
   modalItemActive: { backgroundColor: '#FFF0F3' },
   modalItemText: { fontSize: 16, color: '#1c1c1e' },
   modalItemTextActive: { color: '#FF2D55', fontWeight: '600' },
-  profileModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)' },
+  profileModalOverlay: { flex: 1, backgroundColor: '#000000' },
   profileModalContent: { flex: 1 },
   profileModalClose: { position: 'absolute', top: 16, right: 16, zIndex: 10, padding: 8 },
   profileModalImage: { width: '100%', height: 380 },
@@ -712,4 +770,24 @@ const styles = StyleSheet.create({
   matchModalPrimaryText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   matchModalSecondary: { borderWidth: 1.5, borderColor: '#FF2D55', padding: 14, borderRadius: 14, alignItems: 'center' },
   matchModalSecondaryText: { color: '#FF2D55', fontSize: 16, fontWeight: 'bold' },
+  toastContainer: {
+    position: 'absolute', top: 60, alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)', paddingHorizontal: 20, paddingVertical: 12,
+    borderRadius: 10, zIndex: 1000,
+  },
+  toastText: { color: '#fff', fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  centerModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  centerModalContent: {
+    backgroundColor: '#fff', borderRadius: 20, padding: 28,
+    alignItems: 'center', marginHorizontal: 32, width: '80%',
+  },
+  centerModalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1c1c1e', marginTop: 12 },
+  centerModalBody: { fontSize: 14, color: '#8e8e93', textAlign: 'center', marginTop: 8, marginBottom: 24, lineHeight: 20 },
+  centerModalButtons: { width: '100%', gap: 10 },
+  centerModalPrimary: { backgroundColor: '#FF2D55', padding: 14, borderRadius: 12, alignItems: 'center' },
+  centerModalPrimaryText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  centerModalSecondary: { padding: 14, borderRadius: 12, alignItems: 'center' },
+  centerModalSecondaryText: { color: '#8e8e93', fontSize: 16, fontWeight: '600' },
+  reportModalConfirm: { backgroundColor: '#FF3B30', padding: 14, borderRadius: 12, alignItems: 'center' },
+  reportModalConfirmText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

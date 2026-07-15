@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, useWindowDimensions, ScrollView,
+  ActivityIndicator, useWindowDimensions, ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { auth, setAuthToken } from '../services/api';
@@ -12,12 +12,14 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
   const { height } = useWindowDimensions();
   const isSmall = height < 700;
 
   const handleLogin = async () => {
+    setError('');
     if (!phone || !password) {
-      Alert.alert('Hold on', 'Both phone and password are needed');
+      setError('Both phone and password are needed');
       return;
     }
 
@@ -28,7 +30,7 @@ export default function LoginScreen({ navigation }) {
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (error) {
       const message = error.response?.data?.error || 'Login failed. Check your details and try again.';
-      Alert.alert('Not yet', message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -85,6 +87,7 @@ export default function LoginScreen({ navigation }) {
           <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('ForgotPassword')}>
             <Text style={styles.linkText}>Forgot your secret?</Text>
           </TouchableOpacity>
+          {error ? <Text style={{ color: 'red', textAlign: 'center' }}>{error}</Text> : null}
         </View>
 
         <View style={[styles.footer, isSmall && styles.footerSmall]}>

@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, useWindowDimensions,
+  ActivityIndicator, ScrollView, useWindowDimensions,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { payments } from '../services/api';
+import { payments, users } from '../services/api';
 import { formatPhoneNumber, validatePhoneNumber, PAYMENT_OPTIONS } from '../services/mpesa';
 
 export default function PaymentScreen({ route, navigation }) {
@@ -21,6 +21,7 @@ export default function PaymentScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
+  const [paymentResult, setPaymentResult] = useState(null);
   const pollingRef = useRef(null);
 
   useEffect(() => {
@@ -28,6 +29,27 @@ export default function PaymentScreen({ route, navigation }) {
       if (pollingRef.current) { clearInterval(pollingRef.current); }
     };
   }, []);
+
+  useEffect(() => {
+    if (!paymentResult) return;
+    const timer = setTimeout(async () => {
+      if (paymentResult.success && paymentResult.matchId) {
+        let partner = { id: null, name: matchName || 'Match', profilePicUrl: null };
+        try {
+          const matchesRes = await users.getMatches();
+          const matches = matchesRes.data?.data || [];
+          const found = matches.find(m => m.id === paymentResult.matchId);
+          if (found) {
+            partner = { id: found.match?.id || null, name: found.match?.name || 'Match', profilePicUrl: found.match?.profilePicUrl || null };
+          }
+        } catch { /* use fallback */ }
+        navigation.replace('Chat', { matchId: paymentResult.matchId, match: partner });
+      } else if (paymentResult.success) {
+        navigation.goBack();
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [paymentResult]);
 
   const pollStatus = (transactionId) => {
     setPolling(true);
@@ -41,40 +63,28 @@ export default function PaymentScreen({ route, navigation }) {
         if (tx?.status === 'completed') {
           clearInterval(pollingRef.current);
           setPolling(false);
-          setStatusMsg('');
           const unlockedMatchId = selectedPaymentType === 'match_unlock' ? matchId
             : selectedPaymentType === 'like_unlock' ? tx?.matchId || null
             : null;
-          Alert.alert(
-            'Payment Successful! 💕',
-            selectedPaymentType === 'match_unlock'
-              ? `You can now chat unlimitedly with ${matchName || 'your match'}!`
-              : selectedPaymentType === 'like_unlock'
-                ? `You liked back and unlocked ${matchName || 'your match'}!`
-                : selectedPaymentType.startsWith('subscription')
-                  ? 'Welcome to Premium! You can now browse all counties and enjoy unlimited features.'
-                  : 'Payment completed successfully!',
-            unlockedMatchId
-              ? [{ text: 'Chat Now', onPress: () => navigation.replace('Chat', { matchId: unlockedMatchId, match: { id: null, name: matchName || 'Match', profilePicUrl: null } }) }]
-              : [{ text: 'Great!', onPress: () => navigation.goBack() }],
-          );
+          setStatusMsg('');
+          setPaymentResult({ success: true, matchId: unlockedMatchId });
         } else if (tx?.status === 'failed') {
           clearInterval(pollingRef.current);
           setPolling(false);
           setStatusMsg('');
-          Alert.alert('Payment Failed', 'The payment was not completed. Please try again.');
+          setPaymentResult({ success: false, error: 'The payment was not completed. Please try again.' });
         } else if (attempts > 30) {
           clearInterval(pollingRef.current);
           setPolling(false);
           setStatusMsg('');
-          Alert.alert('Timeout', 'Payment is taking longer than expected. Check your M-Pesa and come back.');
+          setPaymentResult({ success: false, error: 'Payment is taking longer than expected.' });
         }
       } catch {
         if (attempts > 30) {
           clearInterval(pollingRef.current);
           setPolling(false);
           setStatusMsg('');
-          Alert.alert('Timeout', 'Could not verify payment status. Please check your transactions.');
+          setPaymentResult({ success: false, error: 'Could not verify payment status.' });
         }
       }
     }, 2000);
@@ -86,19 +96,21 @@ export default function PaymentScreen({ route, navigation }) {
         daily_chat_unlock: { ...PAYMENT_OPTIONS.daily_chat_unlock, label: `Daily Chat - ${matchName || 'Match'}` },
       }
     : likerId
-      ? { like_unlock: { amount: 50, label: `Like Back & Unlock ${matchName || ''}`, description: 'Like back and unlock unlimited messaging' } }
+      ? { like_unlock: { ...PAYMENT_OPTIONS.like_unlock, label: `Like Back & Unlock ${matchName || ''}` } }
       : Object.fromEntries(Object.entries(PAYMENT_OPTIONS).filter(([k]) => k.startsWith('subscription')));
 
   const handlePayment = async () => {
     if (!selectedPaymentType) {
-      Alert.alert('Error', 'Please select an option');
+      setStatusMsg('Please select an option');
       return;
     }
     if (!validatePhoneNumber(phoneNumber)) {
-      Alert.alert('Error', 'Please enter a valid Kenyan phone number (e.g., 0712345678)');
+      setStatusMsg('Please enter a valid phone number (e.g., 0712345678)');
       return;
     }
     setLoading(true);
+    setStatusMsg('');
+    setPaymentResult(null);
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber);
       const payload = { phoneNumber: formattedPhone, type: selectedPaymentType };
@@ -110,14 +122,34 @@ export default function PaymentScreen({ route, navigation }) {
       if (transactionId) {
         pollStatus(transactionId);
       } else {
-        Alert.alert('Payment Initiated', 'Check your phone for the M-Pesa prompt 💕');
+        setStatusMsg('Payment initiated. Check your phone.');
       }
     } catch (error) {
       setLoading(false);
-      const message = error.response?.data?.error || 'Payment failed. Please try again.';
-      Alert.alert('Error', message);
+      setStatusMsg(error.response?.data?.error || 'Payment failed. Please try again.');
     }
   };
+
+  if (paymentResult?.success) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.resultContainer}>
+          <View style={[styles.resultIcon, { backgroundColor: '#34C759' }]}>
+            <MaterialIcons name="check" size={48} color="#fff" />
+          </View>
+          <Text style={styles.resultTitle}>Payment Successful!</Text>
+          <Text style={styles.resultSubtitle}>
+            {selectedPaymentType === 'like_unlock'
+              ? `You liked back ${matchName || 'your match'}! Redirecting to chat...`
+              : selectedPaymentType === 'match_unlock'
+                ? `Chat unlocked with ${matchName || 'your match'}! Redirecting...`
+                : 'Payment completed! Redirecting...'}
+          </Text>
+          <ActivityIndicator size="small" color="#FF2D55" style={{ marginTop: 20 }} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { paddingTop: insets.top }]} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
@@ -125,7 +157,7 @@ export default function PaymentScreen({ route, navigation }) {
         <View style={styles.logoCircle}><MaterialIcons name="stars" size={36} color="#fff" /></View>
         <Text style={styles.title}>{matchId ? 'Unlock Love 💕' : likerId ? 'Like Back & Unlock 💕' : 'Find Love Everywhere'}</Text>
         <Text style={styles.subtitle}>
-          {matchId ? `Keep chatting with ${matchName || 'your match'} — unlimited messages` : likerId ? `Like back and start chatting with ${matchName || 'your match'} for only Ksh 50` : 'Go Premium to see profiles from all 47 counties'}
+          {matchId ? `Keep chatting with ${matchName || 'your match'} — unlimited messages` : likerId ? `Like back and start chatting with ${matchName || 'your match'} for only Ksh 20` : 'Go Premium to see profiles from all 47 counties'}
         </Text>
       </View>
 
@@ -151,15 +183,27 @@ export default function PaymentScreen({ route, navigation }) {
         <Text style={styles.label}>M-Pesa Number</Text>
         <View style={styles.inputWrapper}><MaterialIcons name="phone" size={20} color="#FF2D55" style={styles.inputIcon} /><TextInput style={styles.input} placeholder="0712 345 678" placeholderTextColor="#c7c7cc" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" maxLength={12} /></View>
         <Text style={styles.hint}>Your Safaricom number for M-Pesa</Text>
-        <TouchableOpacity style={[styles.payButton, (!selectedPaymentType || loading) && styles.payButtonDisabled]} onPress={(!selectedPaymentType || loading) ? undefined : handlePayment}>
+        <TouchableOpacity style={[styles.payButton, (!selectedPaymentType || loading || polling) && styles.payButtonDisabled]} onPress={(!selectedPaymentType || loading || polling) ? undefined : handlePayment}>
           {loading ? <ActivityIndicator color="#fff" /> : (
-            <View style={styles.buttonInner}><MaterialIcons name="payment" size={20} color="#fff" /><Text style={styles.payButtonText}>{selectedPaymentType ? `Pay KSh ${PAYMENT_OPTIONS[selectedPaymentType]?.amount || 50} via M-Pesa` : 'Select an option'}</Text></View>
+            <View style={styles.buttonInner}><MaterialIcons name="payment" size={20} color="#fff" /><Text style={styles.payButtonText}>{selectedPaymentType ? `Pay KSh ${availableOptions[selectedPaymentType]?.amount} via M-Pesa` : 'Select an option'}</Text></View>
           )}
         </TouchableOpacity>
         {polling && (
           <View style={styles.pollingRow}>
             <ActivityIndicator size="small" color="#FF2D55" />
             <Text style={styles.pollingText}>{statusMsg || 'Processing payment...'}</Text>
+          </View>
+        )}
+        {statusMsg && !polling && !paymentResult && (
+          <View style={styles.errorRow}>
+            <MaterialIcons name="info-outline" size={16} color="#FF3B30" />
+            <Text style={styles.errorText}>{statusMsg}</Text>
+          </View>
+        )}
+        {paymentResult?.success === false && (
+          <View style={styles.errorRow}>
+            <MaterialIcons name="error-outline" size={16} color="#FF3B30" />
+            <Text style={styles.errorText}>{paymentResult.error}</Text>
           </View>
         )}
         <View style={styles.info}><MaterialIcons name="info" size={16} color="#8e8e93" /><Text style={styles.infoText}>You&apos;ll receive an STK push on your phone. Enter your M-Pesa PIN to complete.</Text></View>
@@ -202,4 +246,10 @@ const styles = StyleSheet.create({
   infoText: { flex: 1, fontSize: 12, color: '#8e8e93', lineHeight: 18 },
   pollingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 8 },
   pollingText: { fontSize: 14, color: '#FF2D55', fontWeight: '600' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 6 },
+  errorText: { fontSize: 13, color: '#FF3B30', fontWeight: '500' },
+  resultContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  resultIcon: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  resultTitle: { fontSize: 24, fontWeight: 'bold', color: '#1c1c1e', textAlign: 'center' },
+  resultSubtitle: { fontSize: 15, color: '#8e8e93', textAlign: 'center', marginTop: 8 },
 });

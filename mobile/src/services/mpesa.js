@@ -19,7 +19,10 @@ export const validatePhoneNumber = (phone) => {
 
 export const MATCH_UNLOCK_AMOUNT = 10;
 
+export const LIKE_UNLOCK_AMOUNT = 20;
+
 export const PAYMENT_OPTIONS = {
+  like_unlock: { amount: LIKE_UNLOCK_AMOUNT, label: 'Like Back & Unlock', description: 'Like back and unlock unlimited messaging' },
   match_unlock: { amount: MATCH_UNLOCK_AMOUNT, label: 'Unlock Match', description: 'Unlimited messaging for this match' },
   daily_chat_unlock: { amount: 30, label: 'Daily Chat Unlimited', description: 'Unlimited chat for today — all matches' },
   subscription_weekly: { amount: 150, label: 'Weekly Premium', description: '1 week — see profiles from all counties' },

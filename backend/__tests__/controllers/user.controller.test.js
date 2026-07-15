@@ -30,6 +30,7 @@ jest.mock('../../src/prisma', () => ({
     },
     transaction: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
   },
   safeJsonParse: jest.fn(val => {
@@ -311,6 +312,7 @@ describe('User Controller', () => {
         },
       ]);
       prisma.match.findMany.mockResolvedValue([]);
+      prisma.transaction.findMany.mockResolvedValue([]);
       prisma.swipe.findMany.mockResolvedValueOnce([]);
 
       await userController.getLikesReceived(req, res, next);

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, useWindowDimensions,
+  ActivityIndicator, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { auth } from '../services/api';
@@ -14,11 +14,21 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const { height } = useWindowDimensions();
 
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => navigation.goBack(), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
   const handleSendCode = async () => {
+    setError('');
     if (!phone) {
-      Alert.alert('Hold on', 'Please enter your phone number');
+      setError('Please enter your phone number');
       return;
     }
     setLoading(true);
@@ -27,30 +37,29 @@ export default function ForgotPasswordScreen({ navigation }) {
       setStep(2);
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to send reset code';
-      Alert.alert('Error', message);
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleResetPassword = async () => {
+    setError('');
     if (!code || !password) {
-      Alert.alert('Hold on', 'Please enter the code and a new password');
+      setError('Please enter the code and a new password');
       return;
     }
     if (password.length < 8) {
-      Alert.alert('Hold on', 'Password must be at least 8 characters');
+      setError('Password must be at least 8 characters');
       return;
     }
     setLoading(true);
     try {
       await auth.resetPassword({ phone, code, password });
-      Alert.alert('Success', 'Your password has been reset 💕', [
-        { text: 'Login', onPress: () => navigation.goBack() },
-      ]);
+      setSuccess('Your password has been reset 💕');
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to reset password';
-      Alert.alert('Error', message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -142,6 +151,8 @@ export default function ForgotPasswordScreen({ navigation }) {
           <TouchableOpacity style={styles.linkButton} onPress={() => navigation.goBack()}>
             <Text style={styles.linkText}>Back to Login</Text>
           </TouchableOpacity>
+          {error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 10 }}>{error}</Text> : null}
+          {success ? <Text style={{ color: '#34C759', textAlign: 'center', marginTop: 10 }}>{success}</Text> : null}
         </View>
       </ScrollView>
     </View>
