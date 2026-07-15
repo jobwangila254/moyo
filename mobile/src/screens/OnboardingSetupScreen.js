@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ActivityIndicator, ScrollView, Image, Platform, useWindowDimensions,
+  ActivityIndicator, ScrollView, Image, Platform,
 } from 'react-native';
 import PropTypes from 'prop-types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ const TOTAL_STEPS = 4;
 
 export default function OnboardingSetupScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+
   const [step, setStep] = useState(1);
   const [photos, setPhotos] = useState([]);
   const [bio, setBio] = useState('');

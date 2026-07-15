@@ -18,6 +18,7 @@ export default function ViewUserScreen({ route, navigation }) {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [myTier, setMyTier] = useState('FREE');
   const [loadError, setLoadError] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -81,12 +82,12 @@ export default function ViewUserScreen({ route, navigation }) {
     return (
       <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
         <MaterialIcons name="error-outline" size={48} color="#FF3B30" />
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1c1c1e', marginTop: 12 }}>Failed to load profile</Text>
+        <Text style={styles.errorText}>Failed to load profile</Text>
         <TouchableOpacity
-          style={{ marginTop: 20, backgroundColor: '#FF2D55', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 }}
+          style={styles.errorBackBtn}
           onPress={() => navigation.goBack()}
         >
-          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>Go Back</Text>
+          <Text style={styles.errorBackBtnText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -212,16 +213,32 @@ export default function ViewUserScreen({ route, navigation }) {
         </View>
         <TouchableOpacity
           style={styles.blockBtn}
-          onPress={async () => {
-            try {
-              await users.blockUser(userId);
-              navigation.goBack();
-            } catch { /* ignore */ }
-          }}
+          onPress={() => setShowBlockConfirm(true)}
         >
           <MaterialIcons name="block" size={16} color="#8e8e93" />
           <Text style={styles.blockBtnText}>Block User</Text>
         </TouchableOpacity>
+        {showBlockConfirm && (
+          <View style={styles.blockConfirmBox}>
+            <Text style={styles.blockConfirmText}>Block this user? They won't be able to see your profile or message you.</Text>
+            <View style={styles.blockConfirmButtons}>
+              <TouchableOpacity style={styles.blockConfirmCancel} onPress={() => setShowBlockConfirm(false)}>
+                <Text style={styles.blockConfirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.blockConfirmDelete}
+                onPress={async () => {
+                  try {
+                    await users.blockUser(userId);
+                    navigation.goBack();
+                  } catch { /* ignore */ }
+                }}
+              >
+                <Text style={styles.blockConfirmDeleteText}>Block</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -263,4 +280,14 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
   blockBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, paddingVertical: 10 },
   blockBtnText: { color: '#8e8e93', fontSize: 14 },
+  errorText: { fontSize: 18, fontWeight: 'bold', color: '#1c1c1e', marginTop: 12 },
+  errorBackBtn: { marginTop: 20, backgroundColor: '#FF2D55', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },
+  errorBackBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  blockConfirmBox: { backgroundColor: '#FFF5F5', padding: 14, borderRadius: 10, marginTop: 10, borderWidth: 1, borderColor: '#FFD0D0' },
+  blockConfirmText: { fontSize: 14, color: '#3a3a3c', marginBottom: 10, lineHeight: 20 },
+  blockConfirmButtons: { flexDirection: 'row', gap: 10 },
+  blockConfirmCancel: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f0f0f0' },
+  blockConfirmCancelText: { fontSize: 14, fontWeight: '500', color: '#3a3a3c' },
+  blockConfirmDelete: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: '#FF3B30' },
+  blockConfirmDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });

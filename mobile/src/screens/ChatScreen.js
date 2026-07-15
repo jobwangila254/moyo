@@ -192,17 +192,17 @@ export default function ChatScreen({ route, navigation }) {
             {reportResult === null ? (
               <>
                 <MaterialIcons name="flag" size={36} color="#FF3B30" />
-                <Text style={styles.overlayTitle}>Report User</Text>
+                <Text style={styles.overlayTitle}>Report / Block User</Text>
                 <Text style={styles.overlaySubtitle}>Report {match.name} for inappropriate behavior?</Text>
                 {reporting ? (
-                  <ActivityIndicator size="large" color="#FF2D55" style={{ marginVertical: 16 }} />
+                  <ActivityIndicator size="large" color="#FF2D55" style={styles.reportActivityIndicator} />
                 ) : (
-                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-                    <TouchableOpacity style={[styles.overlayBtn, { backgroundColor: '#e0e0e0' }]} onPress={() => setShowReportModal(false)}>
-                      <Text style={[styles.overlayBtnText, { color: '#1c1c1e' }]}>Cancel</Text>
+                  <View style={styles.reportButtonsRow}>
+                    <TouchableOpacity style={[styles.overlayBtn, styles.reportCancelBtn]} onPress={() => setShowReportModal(false)}>
+                      <Text style={[styles.overlayBtnText, styles.reportCancelBtnText]}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.overlayBtn, { backgroundColor: '#8e8e93' }]}
+                      style={[styles.overlayBtn, styles.reportBlockBtn]}
                       onPress={async () => {
                         setReporting(true);
                         try {
@@ -216,7 +216,7 @@ export default function ChatScreen({ route, navigation }) {
                       <Text style={styles.overlayBtnText}>Block</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.overlayBtn, { backgroundColor: '#FF3B30' }]}
+                      style={[styles.overlayBtn, styles.reportConfirmBtn]}
                       onPress={async () => {
                         setReporting(true);
                         try {
@@ -246,9 +246,9 @@ export default function ChatScreen({ route, navigation }) {
                 <MaterialIcons name="error-outline" size={36} color="#FF3B30" />
                 <Text style={styles.overlayTitle}>Error</Text>
                 <Text style={styles.overlaySubtitle}>Failed to submit report</Text>
-                <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-                  <TouchableOpacity style={[styles.overlayBtn, { backgroundColor: '#e0e0e0' }]} onPress={() => setShowReportModal(false)}>
-                    <Text style={[styles.overlayBtnText, { color: '#1c1c1e' }]}>Close</Text>
+                <View style={styles.reportButtonsRow}>
+                  <TouchableOpacity style={[styles.overlayBtn, styles.reportCancelBtn]} onPress={() => setShowReportModal(false)}>
+                    <Text style={[styles.overlayBtnText, styles.reportCancelBtnText]}>Close</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.overlayBtn} onPress={() => setReportResult(null)}>
                     <Text style={styles.overlayBtnText}>Retry</Text>
@@ -308,4 +308,10 @@ const styles = StyleSheet.create({
   overlayBtn: { backgroundColor: '#FF2D55', borderRadius: 22, paddingVertical: 12, paddingHorizontal: 28, marginTop: 16 },
   overlayBtnText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
   overlayDismiss: { fontSize: 14, color: '#8e8e93', marginTop: 12, textDecorationLine: 'underline' },
+  reportActivityIndicator: { marginVertical: 16 },
+  reportButtonsRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  reportCancelBtn: { backgroundColor: '#e0e0e0' },
+  reportCancelBtnText: { color: '#1c1c1e' },
+  reportBlockBtn: { backgroundColor: '#8e8e93' },
+  reportConfirmBtn: { backgroundColor: '#FF3B30' },
 });
