@@ -328,3 +328,286 @@ exports.getTransactionHistory = catchAsync(async (req, res) => {
 
   res.json({ success: true, data: transactions });
 });
+
+exports.getPaymentHistory = catchAsync(async (req, res) => {
+  const { startDate, endDate, type } = req.query;
+  const where = { userId: req.userId };
+
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) { where.createdAt.gte = new Date(startDate); }
+    if (endDate) { where.createdAt.lte = new Date(endDate); }
+  }
+  if (type) { where.type = type; }
+
+  const transactions = await prisma.transaction.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+
+  const totalSpent = transactions
+    .filter(t => t.status === 'completed')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const byType = transactions
+    .filter(t => t.status === 'completed')
+    .reduce((acc, t) => {
+      acc[t.type] = (acc[t.type] || 0) + t.amount;
+      return acc;
+    }, {});
+
+  res.json({
+    success: true,
+    data: {
+      transactions,
+      summary: { totalSpent, byType, count: transactions.length },
+    },
+  });
+});
+
+exports.processCardPayment = catchAsync(async (req, res) => {
+  const { type, matchId, cardNumber, expiry, cvv } = req.body;
+
+  if (type === 'match_unlock' && !matchId) {
+    throw new AppError('matchId required for match_unlock', 400);
+  }
+  if (type === 'like_unlock' && !matchId) {
+    throw new AppError('likerId required for like_unlock', 400);
+  }
+
+  const expectedAmount = PRICES[type];
+  if (!expectedAmount) {
+    throw new AppError(`Invalid payment type: ${type}`, 400);
+  }
+
+  const maskedCard = cardNumber.slice(-4).padStart(cardNumber.length, '*');
+
+  const transaction = await prisma.transaction.create({
+    data: {
+      userId: req.userId,
+      type,
+      amount: expectedAmount,
+      matchId: matchId ? parseInt(matchId, 10) : null,
+      status: 'pending',
+      mpesaReceipt: `CARD_${maskedCard}_${Date.now()}`,
+    },
+  });
+
+  logger.info(`[CARD SIMULATION] Card ${maskedCard} payment of Ksh ${expectedAmount} (${type})`);
+
+  setTimeout(async () => {
+    try {
+      await processPayment(transaction, type, matchId, req.userId);
+      logger.info(`[CARD SIMULATION] Transaction ${transaction.id} completed`);
+    } catch (err) {
+      logger.error('Card payment callback error:', err);
+      try {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: 'failed' },
+        });
+      } catch { /* ignore */ }
+    }
+  }, 2000);
+
+  res.json({
+    success: true,
+    message: 'Card payment processing. You will be notified when complete.',
+    data: { transactionId: transaction.id },
+  });
+});
+
+exports.bulkSTKPush = catchAsync(async (req, res) => {
+  const { payments: bulkPayments } = req.body;
+
+  if (!bulkPayments || !Array.isArray(bulkPayments) || bulkPayments.length === 0) {
+    throw new AppError('payments array is required', 400);
+  }
+  if (bulkPayments.length > 10) {
+    throw new AppError('Maximum 10 payments per batch', 400);
+  }
+
+  const results = [];
+
+  for (const item of bulkPayments) {
+    const { phoneNumber, amount, type } = item;
+
+    const expectedAmount = PRICES[type];
+    if (!expectedAmount) {
+      results.push({ error: `Invalid type: ${type}`, phoneNumber });
+      continue;
+    }
+    if (parseInt(amount, 10) !== expectedAmount) {
+      results.push({ error: `Invalid amount for ${type}. Expected ${expectedAmount}`, phoneNumber });
+      continue;
+    }
+
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId: req.userId,
+        type,
+        amount: expectedAmount,
+        status: 'pending',
+      },
+    });
+
+    const formattedPhone = formatPhone(phoneNumber);
+    logger.info(`[BULK STK SIMULATION] STK Push sent to ${formattedPhone} for Ksh ${expectedAmount} (${type})`);
+
+    setTimeout(async () => {
+      try {
+        await processPayment(transaction, type, null, req.userId);
+      } catch (err) {
+        logger.error('Bulk STK callback error:', err);
+        try {
+          await prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { status: 'failed' },
+          });
+        } catch { /* ignore */ }
+      }
+    }, 3000);
+
+    results.push({ transactionId: transaction.id, phoneNumber: formattedPhone, amount: expectedAmount, type });
+  }
+
+  res.json({
+    success: true,
+    message: `Processing ${results.filter(r => r.transactionId).length} payments`,
+    data: results,
+  });
+});
+
+const SUBSCRIPTION_DURATIONS = {
+  subscription_weekly: 7,
+  subscription_fortnightly: 14,
+  subscription_monthly: 30,
+  subscription_halfyear: 180,
+  subscription_yearly: 365,
+};
+
+const getEndDate = (plan) => {
+  const days = SUBSCRIPTION_DURATIONS[plan] || 30;
+  const end = new Date();
+  end.setDate(end.getDate() + days);
+  return end;
+};
+
+exports.getCurrentSubscription = catchAsync(async (req, res) => {
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      userId: req.userId,
+      status: 'active',
+      endDate: { gt: new Date() },
+    },
+    orderBy: { startDate: 'desc' },
+  });
+
+  res.json({ success: true, data: subscription || null });
+});
+
+exports.cancelSubscription = catchAsync(async (req, res) => {
+  const subId = parseInt(req.params.id, 10);
+  if (isNaN(subId)) {
+    throw new AppError('Invalid subscription ID', 400);
+  }
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subId },
+  });
+
+  if (!subscription) {
+    throw new AppError('Subscription not found', 404);
+  }
+  if (subscription.userId !== req.userId) {
+    throw new AppError('Unauthorized', 403);
+  }
+  if (subscription.status !== 'active') {
+    throw new AppError('Subscription is not active', 400);
+  }
+
+  const updated = await prisma.subscription.update({
+    where: { id: subId },
+    data: {
+      autoRenew: false,
+      cancelledAt: new Date(),
+    },
+  });
+
+  res.json({ success: true, data: updated, message: 'Auto-renewal cancelled. Subscription active until end date.' });
+});
+
+exports.getSubscriptionHistory = catchAsync(async (req, res) => {
+  const subscriptions = await prisma.subscription.findMany({
+    where: { userId: req.userId },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  res.json({ success: true, data: subscriptions });
+});
+
+exports.changePlan = catchAsync(async (req, res) => {
+  const { plan, paymentMethod } = req.body;
+
+  const expectedAmount = PRICES[plan];
+  if (!expectedAmount) {
+    throw new AppError(`Invalid plan: ${plan}`, 400);
+  }
+
+  const activeSub = await prisma.subscription.findFirst({
+    where: {
+      userId: req.userId,
+      status: 'active',
+      endDate: { gt: new Date() },
+    },
+  });
+
+  if (activeSub) {
+    await prisma.subscription.update({
+      where: { id: activeSub.id },
+      data: { status: 'cancelled', autoRenew: false, cancelledAt: new Date() },
+    });
+  }
+
+  const transaction = await prisma.transaction.create({
+    data: {
+      userId: req.userId,
+      type: plan,
+      amount: expectedAmount,
+      status: 'pending',
+    },
+  });
+
+  const newSub = await prisma.subscription.create({
+    data: {
+      userId: req.userId,
+      plan,
+      status: 'active',
+      startDate: new Date(),
+      endDate: getEndDate(plan),
+      autoRenew: true,
+    },
+  });
+
+  setTimeout(async () => {
+    try {
+      await processPayment(transaction, plan, null, req.userId);
+      logger.info(`[PLAN CHANGE] User ${req.userId} changed to ${plan}`);
+    } catch (err) {
+      logger.error('Plan change callback error:', err);
+      try {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: 'failed' },
+        });
+      } catch { /* ignore */ }
+    }
+  }, paymentMethod === 'card' ? 2000 : 3000);
+
+  res.json({
+    success: true,
+    message: `Plan changed to ${plan}. Processing payment...`,
+    data: { subscription: newSub, transactionId: transaction.id },
+  });
+});

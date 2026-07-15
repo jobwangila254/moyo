@@ -133,6 +133,77 @@ const stkPush = [
   handleValidationErrors,
 ];
 
+const cardPayment = [
+  body('type')
+    .notEmpty()
+    .withMessage('Payment type is required')
+    .isIn(VALID_PAYMENT_TYPES)
+    .withMessage(`Type must be one of: ${VALID_PAYMENT_TYPES.join(', ')}`),
+  body('cardNumber')
+    .notEmpty()
+    .withMessage('Card number is required')
+    .isLength({ min: 13, max: 19 })
+    .withMessage('Card number must be 13-19 digits')
+    .matches(/^\d+$/)
+    .withMessage('Card number must contain only digits'),
+  body('expiry')
+    .notEmpty()
+    .withMessage('Expiry date is required')
+    .matches(/^(0[1-9]|1[0-2])\/\d{2}$/)
+    .withMessage('Expiry must be in MM/YY format'),
+  body('cvv')
+    .notEmpty()
+    .withMessage('CVV is required')
+    .isLength({ min: 3, max: 4 })
+    .withMessage('CVV must be 3-4 digits')
+    .matches(/^\d+$/)
+    .withMessage('CVV must contain only digits'),
+  body('matchId')
+    .if(body('type').equals('match_unlock'))
+    .notEmpty()
+    .withMessage('matchId required for match_unlock')
+    .isInt()
+    .withMessage('Invalid match ID'),
+  body('matchId')
+    .if(body('type').equals('like_unlock'))
+    .notEmpty()
+    .withMessage('likerId required for like_unlock')
+    .isInt()
+    .withMessage('Invalid liker ID'),
+  handleValidationErrors,
+];
+
+const bulkSTK = [
+  body('payments')
+    .isArray({ min: 1, max: 10 })
+    .withMessage('payments must be an array of 1-10 items'),
+  body('payments.*.phoneNumber')
+    .notEmpty()
+    .withMessage('Phone number is required for each payment'),
+  body('payments.*.amount')
+    .isInt({ min: 1 })
+    .withMessage('Amount must be a positive integer'),
+  body('payments.*.type')
+    .notEmpty()
+    .withMessage('Payment type is required for each payment')
+    .isIn(VALID_PAYMENT_TYPES)
+    .withMessage(`Type must be one of: ${VALID_PAYMENT_TYPES.join(', ')}`),
+  handleValidationErrors,
+];
+
+const changePlan = [
+  body('plan')
+    .notEmpty()
+    .withMessage('Plan is required')
+    .isIn(['subscription_weekly', 'subscription_fortnightly', 'subscription_monthly', 'subscription_halfyear', 'subscription_yearly'])
+    .withMessage('Invalid plan'),
+  body('paymentMethod')
+    .optional()
+    .isIn(['mpesa', 'card'])
+    .withMessage('Payment method must be mpesa or card'),
+  handleValidationErrors,
+];
+
 const paramId = [param('id').isInt({ min: 1 }).withMessage('Invalid ID parameter'), handleValidationErrors];
 
 const matchId = [param('matchId').isInt({ min: 1 }).withMessage('Invalid match ID'), handleValidationErrors];
@@ -171,6 +242,9 @@ module.exports = {
   sendMessage,
   reportUser,
   stkPush,
+  cardPayment,
+  bulkSTK,
+  changePlan,
   paramId,
   matchId,
 };

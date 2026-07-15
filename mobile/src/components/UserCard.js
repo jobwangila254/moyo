@@ -113,6 +113,11 @@ const UserCard = ({ user, onSwipe, onPress, cardHeight, tier }) => {
             <Text style={styles.passText}>NOPE</Text>
           </Animated.View>
         </View>
+        {user.videoUrl && (
+          <View style={styles.videoBadge}>
+            <MaterialIcons name="videocam" size={14} color="#fff" />
+          </View>
+        )}
         <View style={styles.infoContainer}>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{user.name}</Text>
@@ -214,6 +219,12 @@ const styles = StyleSheet.create({
   hobbyTag: { backgroundColor: '#F5F3FF' },
   likeTagText: { fontSize: 11, color: '#FF2D55', fontWeight: '500' },
   hobbyTagText: { fontSize: 11, color: '#5856D6', fontWeight: '500' },
+  videoBadge: {
+    position: 'absolute', top: 12, right: 12,
+    backgroundColor: '#FF2D55', borderRadius: 14,
+    width: 28, height: 28, justifyContent: 'center', alignItems: 'center',
+    zIndex: 1,
+  },
   bio: { marginTop: 8, fontSize: 13, lineHeight: 18, color: '#3a3a3c' },
   actions: {
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',

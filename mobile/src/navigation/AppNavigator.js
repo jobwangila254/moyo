@@ -8,11 +8,13 @@ import ChatScreen from '../screens/ChatScreen';
 import LikesScreen from '../screens/LikesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PaymentScreen from '../screens/PaymentScreen';
+import SubscriptionScreen from '../screens/SubscriptionScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import SafetyScreen from '../screens/SafetyScreen';
 import ViewUserScreen from '../screens/ViewUserScreen';
 import OnboardingSetupScreen from '../screens/OnboardingSetupScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import SuperLikeQueueScreen from '../screens/SuperLikeQueueScreen';
 import { getItem } from '../services/storage';
 
 const Stack = Platform.OS === 'web'
@@ -89,6 +91,11 @@ export default function AppNavigator() {
         options={{ title: 'Payments' }}
       />
       <Stack.Screen
+        name="Subscription"
+        component={SubscriptionScreen}
+        options={{ title: 'Subscriptions' }}
+      />
+      <Stack.Screen
         name="ForgotPassword"
         component={ForgotPasswordScreen}
         options={{ title: 'Reset Password' }}
@@ -112,6 +119,11 @@ export default function AppNavigator() {
         name="Settings"
         component={SettingsScreen}
         options={{ title: 'Settings' }}
+      />
+      <Stack.Screen
+        name="SuperLikeQueue"
+        component={SuperLikeQueueScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

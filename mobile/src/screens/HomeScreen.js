@@ -352,6 +352,9 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.navigate('Likes')}>
             <MaterialIcons name="favorite-border" size={26} color="#FF2D55" />
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('SuperLikeQueue')}>
+            <MaterialIcons name="star-border" size={26} color="#FF2D55" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
             <MaterialIcons name="person" size={28} color="#FF2D55" />
           </TouchableOpacity>

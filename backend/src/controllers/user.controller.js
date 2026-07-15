@@ -99,6 +99,7 @@ exports.getProfiles = catchAsync(async (req, res) => {
         hobbies: true,
         photos: true,
         profilePicUrl: true,
+        videoUrl: true,
         tier: true,
         boostedUntil: true,
         county: { select: { id: true, name: true } },
@@ -162,6 +163,7 @@ exports.getProfileById = catchAsync(async (req, res) => {
       hobbies: true,
       photos: true,
       profilePicUrl: true,
+      videoUrl: true,
       tier: true,
       county: { select: { id: true, name: true } },
     },
@@ -189,7 +191,7 @@ exports.getProfileById = catchAsync(async (req, res) => {
 });
 
 exports.updateProfile = catchAsync(async (req, res) => {
-  const { name, age, gender, interestedIn, countyId, bio, occupation, likes, hobbies, photos, profilePicUrl } = req.body;
+  const { name, age, gender, interestedIn, countyId, bio, occupation, likes, hobbies, photos, profilePicUrl, videoUrl } = req.body;
   const data = {};
   if (name) {
     data.name = name.trim();
@@ -224,6 +226,9 @@ exports.updateProfile = catchAsync(async (req, res) => {
   if (profilePicUrl) {
     data.profilePicUrl = profilePicUrl;
   }
+  if (videoUrl !== undefined) {
+    data.videoUrl = videoUrl || null;
+  }
 
   const user = await prisma.user.update({
     where: { id: req.userId },
@@ -241,6 +246,7 @@ exports.updateProfile = catchAsync(async (req, res) => {
       hobbies: true,
       photos: true,
       profilePicUrl: true,
+      videoUrl: true,
       tier: true,
       county: { select: { id: true, name: true } },
     },
@@ -314,6 +320,20 @@ exports.swipe = catchAsync(async (req, res) => {
       const currentUserData = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true } }).catch(() => null);
       sendPushNotification(matchedUserId, "It's a match! 🎉", `${currentUserData?.name || 'Someone'} liked you back!`, { type: 'match', matchId: match.id }).catch(() => {});
     }
+  }
+
+  if (direction === 'superlike' && !match) {
+    await prisma.superLikeQueue.upsert({
+      where: { superlikedId_superlikerId: { superlikedId: parseInt(swipedId, 10), superlikerId: req.userId } },
+      update: { createdAt: new Date() },
+      create: { superlikedId: parseInt(swipedId, 10), superlikerId: req.userId },
+    }).catch(() => {});
+  }
+
+  if (direction === 'superlike' && match) {
+    await prisma.superLikeQueue.deleteMany({
+      where: { superlikedId: parseInt(swipedId, 10), superlikerId: req.userId },
+    }).catch(() => {});
   }
 
   const likeMessages = { like: 'Liked!', superlike: 'Superliked!', pass: 'Passed!' };
@@ -422,6 +442,14 @@ exports.getMessages = catchAsync(async (req, res) => {
       senderId: true,
       content: true,
       createdAt: true,
+      reactions: {
+        select: {
+          id: true,
+          emoji: true,
+          userId: true,
+          user: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 
@@ -518,6 +546,69 @@ exports.sendMessage = catchAsync(async (req, res) => {
   sendPushNotification(otherUserId, sender.name, content.trim().substring(0, 100), { type: 'message', matchId }).catch(() => {});
 
   res.status(201).json({ success: true, data: messageWithSender });
+});
+
+exports.toggleReaction = catchAsync(async (req, res) => {
+  const messageId = parseId(req.params.messageId);
+  const { emoji } = req.body;
+
+  if (!emoji || typeof emoji !== 'string') {
+    throw new AppError('Emoji is required', 400);
+  }
+
+  const message = await prisma.message.findUnique({ where: { id: messageId } });
+  if (!message) {
+    throw new AppError('Message not found', 404);
+  }
+
+  const match = await prisma.match.findUnique({ where: { id: message.matchId } });
+  if (!match || (match.user1Id !== req.userId && match.user2Id !== req.userId)) {
+    throw new AppError('Not part of this match', 403);
+  }
+
+  const existingReaction = await prisma.messageReaction.findUnique({
+    where: { messageId_userId: { messageId, userId: req.userId } },
+  });
+
+  if (existingReaction) {
+    if (existingReaction.emoji === emoji) {
+      await prisma.messageReaction.delete({ where: { id: existingReaction.id } });
+      return res.json({ success: true, data: null, message: 'Reaction removed' });
+    }
+    const updated = await prisma.messageReaction.update({
+      where: { id: existingReaction.id },
+      data: { emoji },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return res.json({ success: true, data: updated });
+  }
+
+  const reaction = await prisma.messageReaction.create({
+    data: { messageId, userId: req.userId, emoji },
+    include: { user: { select: { id: true, name: true } } },
+  });
+
+  res.status(201).json({ success: true, data: reaction });
+});
+
+exports.removeReaction = catchAsync(async (req, res) => {
+  const messageId = parseId(req.params.messageId);
+
+  const message = await prisma.message.findUnique({ where: { id: messageId } });
+  if (!message) {
+    throw new AppError('Message not found', 404);
+  }
+
+  const match = await prisma.match.findUnique({ where: { id: message.matchId } });
+  if (!match || (match.user1Id !== req.userId && match.user2Id !== req.userId)) {
+    throw new AppError('Not part of this match', 403);
+  }
+
+  await prisma.messageReaction.deleteMany({
+    where: { messageId, userId: req.userId },
+  });
+
+  res.json({ success: true, message: 'Reaction removed' });
 });
 
 exports.reportUser = catchAsync(async (req, res) => {
@@ -899,4 +990,47 @@ exports.flagPhoto = catchAsync(async (req, res) => {
 exports.completeOnboarding = catchAsync(async (req, res) => {
   await prisma.user.update({ where: { id: req.userId }, data: { onboardingComplete: true } });
   res.json({ success: true, message: 'Onboarding completed' });
+});
+
+exports.getSuperLikeQueue = catchAsync(async (req, res) => {
+  const superLikes = await prisma.superLikeQueue.findMany({
+    where: { superlikedId: req.userId, viewed: false },
+    include: {
+      superliker: {
+        select: {
+          id: true,
+          name: true,
+          age: true,
+          gender: true,
+          bio: true,
+          occupation: true,
+          likes: true,
+          hobbies: true,
+          photos: true,
+          profilePicUrl: true,
+          tier: true,
+          county: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  await prisma.superLikeQueue.updateMany({
+    where: { superlikedId: req.userId, viewed: false },
+    data: { viewed: true },
+  }).catch(() => {});
+
+  const enriched = superLikes.map(sl => ({
+    id: sl.id,
+    createdAt: sl.createdAt,
+    superliker: {
+      ...sl.superliker,
+      likes: safeJsonParse(sl.superliker.likes),
+      hobbies: safeJsonParse(sl.superliker.hobbies),
+      photos: safeJsonParse(sl.superliker.photos),
+    },
+  }));
+
+  res.json({ success: true, data: enriched });
 });

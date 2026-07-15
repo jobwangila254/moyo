@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   ScrollView, Image, useWindowDimensions,
@@ -148,6 +148,16 @@ export default function ViewUserScreen({ route, navigation }) {
           <Text style={styles.county}>{user.county?.name || 'Unknown'}</Text>
         </View>
 
+        {user.videoUrl && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Video</Text>
+            <View style={styles.videoIndicator}>
+              <MaterialIcons name="play-circle-filled" size={28} color="#FF2D55" />
+              <Text style={styles.videoIndicatorText}>Video Available</Text>
+            </View>
+          </View>
+        )}
+
         {user.bio && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About</Text>
@@ -272,6 +282,8 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#FF2D55' },
   tagText: { color: '#FF2D55', fontSize: 14, fontWeight: '500' },
+  videoIndicator: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF0F3', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
+  videoIndicatorText: { fontSize: 15, fontWeight: '500', color: '#FF2D55' },
   actions: { flexDirection: 'row', gap: 16, marginTop: 30, paddingHorizontal: 24 },
   approveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF2D55', paddingVertical: 14, borderRadius: 24, gap: 8 },
   approveBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },

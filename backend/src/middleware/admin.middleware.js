@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../prisma');
 
-exports.authenticate = async (req, res, next) => {
+exports.authenticateAdmin = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -13,11 +13,19 @@ exports.authenticate = async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, phone: true, name: true, tier: true, role: true, phoneVerified: true, countyId: true },
+      select: { id: true, phone: true, name: true, role: true, isActive: true },
     });
 
     if (!user) {
       return res.status(401).json({ success: false, error: 'User not found.' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, error: 'Account is deactivated.' });
+    }
+
+    if (user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Admin access required.' });
     }
 
     req.user = user;
@@ -32,32 +40,4 @@ exports.authenticate = async (req, res, next) => {
     }
     next(error);
   }
-};
-
-exports.requireTier = (...tiers) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ success: false, error: 'Authentication required.' });
-    }
-    if (!tiers.includes(req.user.tier)) {
-      return res.status(403).json({
-        success: false,
-        error: `This feature requires ${tiers.join(' or ')} tier. Please upgrade your account.`,
-      });
-    }
-    next();
-  };
-};
-
-exports.requireVerified = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ success: false, error: 'Authentication required.' });
-  }
-  if (!req.user.phoneVerified) {
-    return res.status(403).json({
-      success: false,
-      error: 'Please verify your phone number to access this feature.',
-    });
-  }
-  next();
 };

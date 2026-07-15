@@ -10,6 +10,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { users } from '../services/api';
 import { connectSocket, joinMatchRoom, leaveMatchRoom, onNewMessage } from '../services/socket';
 
+const REACTION_EMOJIS = ['❤️', '😂', '😮', '👍', '🔥', '💔'];
+
 export default function ChatScreen({ route, navigation }) {
   const { matchId, match, freeRemaining: initialFree, unlocked: initialUnlocked } = route.params;
   const insets = useSafeAreaInsets();
@@ -38,6 +40,7 @@ export default function ChatScreen({ route, navigation }) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [reportResult, setReportResult] = useState(null);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState(null);
 
   const loadMessages = useCallback(async () => {
     try {
@@ -92,14 +95,85 @@ export default function ChatScreen({ route, navigation }) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleReaction = async (messageId, emoji) => {
+    try {
+      const res = await users.toggleReaction(messageId, emoji);
+      setMessages((prev) => prev.map((msg) => {
+        if (msg.id !== messageId) {
+          return msg;
+        }
+        const newReaction = res.data.data;
+        if (!newReaction) {
+          return { ...msg, reactions: (msg.reactions || []).filter(r => r.userId !== quota.myUserId) };
+        }
+        const existing = (msg.reactions || []).find(r => r.userId === quota.myUserId);
+        if (existing) {
+          return { ...msg, reactions: msg.reactions.map(r => r.userId === quota.myUserId ? { ...r, emoji } : r) };
+        }
+        return { ...msg, reactions: [...(msg.reactions || []), newReaction] };
+      }));
+    } catch { /* ignore */ }
+    setReactionPickerMessageId(null);
+  };
+
+  const getReactionCounts = (reactions) => {
+    if (!reactions || reactions.length === 0) {
+      return [];
+    }
+    const counts = {};
+    reactions.forEach((r) => {
+      if (!counts[r.emoji]) {
+        counts[r.emoji] = { emoji: r.emoji, count: 0, users: [] };
+      }
+      counts[r.emoji].count++;
+      counts[r.emoji].users.push(r.user?.name || 'Someone');
+    });
+    return Object.values(counts);
+  };
+
   const renderMessage = ({ item }) => {
     const isMe = item.senderId === quota.myUserId;
+    const reactionCounts = getReactionCounts(item.reactions);
+    const myReaction = (item.reactions || []).find(r => r.userId === quota.myUserId)?.emoji;
     return (
-      <View style={[styles.msgBubble, isMe ? styles.msgMe : styles.msgThem]}>
-        {!isMe && <Text style={styles.msgSender}>{item.senderName}</Text>}
-        <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextThem]}>{item.content}</Text>
-        <Text style={[styles.msgTime, isMe ? styles.msgTimeMe : styles.msgTimeThem]}>{formatTime(item.createdAt)}</Text>
-      </View>
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={() => setReactionPickerMessageId(reactionPickerMessageId === item.id ? null : item.id)}
+        onPress={() => setReactionPickerMessageId(null)}
+      >
+        <View style={[styles.msgBubble, isMe ? styles.msgMe : styles.msgThem]}>
+          {!isMe && <Text style={styles.msgSender}>{item.senderName}</Text>}
+          <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextThem]}>{item.content}</Text>
+          <Text style={[styles.msgTime, isMe ? styles.msgTimeMe : styles.msgTimeThem]}>{formatTime(item.createdAt)}</Text>
+        </View>
+        {reactionCounts.length > 0 && (
+          <View style={[styles.reactionsRow, isMe ? styles.reactionsRowMe : styles.reactionsRowThem]}>
+            {reactionCounts.map((rc) => (
+              <TouchableOpacity
+                key={rc.emoji}
+                style={[styles.reactionBadge, myReaction === rc.emoji && styles.reactionBadgeActive]}
+                onPress={() => handleReaction(item.id, rc.emoji)}
+              >
+                <Text style={styles.reactionEmoji}>{rc.emoji}</Text>
+                {rc.count > 1 && <Text style={styles.reactionCount}>{rc.count}</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        {reactionPickerMessageId === item.id && (
+          <View style={[styles.reactionPicker, isMe ? styles.reactionPickerMe : styles.reactionPickerThem]}>
+            {REACTION_EMOJIS.map((emoji) => (
+              <TouchableOpacity
+                key={emoji}
+                style={[styles.reactionPickerItem, myReaction === emoji && styles.reactionPickerItemActive]}
+                onPress={() => handleReaction(item.id, emoji)}
+              >
+                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -314,4 +388,17 @@ const styles = StyleSheet.create({
   reportCancelBtnText: { color: '#1c1c1e' },
   reportBlockBtn: { backgroundColor: '#8e8e93' },
   reportConfirmBtn: { backgroundColor: '#FF3B30' },
+  reactionsRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4, gap: 4 },
+  reactionsRowMe: { justifyContent: 'flex-end' },
+  reactionsRowThem: { justifyContent: 'flex-start' },
+  reactionBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#f0d0d8' },
+  reactionBadgeActive: { backgroundColor: '#FFE5EA', borderColor: '#FF2D55' },
+  reactionEmoji: { fontSize: 14 },
+  reactionCount: { fontSize: 12, color: '#8e8e93', marginLeft: 4 },
+  reactionPicker: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 24, paddingVertical: 8, paddingHorizontal: 12, marginTop: 4, alignSelf: 'flex-start', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4, gap: 4 },
+  reactionPickerMe: { alignSelf: 'flex-end' },
+  reactionPickerThem: { alignSelf: 'flex-start' },
+  reactionPickerItem: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  reactionPickerItemActive: { backgroundColor: '#FFE5EA' },
+  reactionPickerEmoji: { fontSize: 24 },
 });

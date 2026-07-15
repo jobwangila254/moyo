@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moyo - Find Your Heart | Kenya's #1 Dating App</title>
+<meta name="description" content="Moyo is Kenya's leading dating app. Swipe, match, and connect with people near you. Safe, fun, and designed for Kenyans.">
+<meta name="theme-color" content="#FF2D55">
+<style>
+:root {
+  --moyo-pink: #FF2D55;
+  --moyo-pink-dark: #E0244C;
+  --moyo-pink-light: #FF6B8A;
+  --moyo-dark: #1c1c1e;
+  --moyo-darker: #111113;
+  --moyo-white: #ffffff;
+  --moyo-light-pink: #FFF5F7;
+  --moyo-gray: #8e8e93;
+  --moyo-gray-light: #f2f2f7;
+  --moyo-gray-dark: #3a3a3c;
+  --moyo-gradient: linear-gradient(135deg, #FF2D55 0%, #FF6B8A 50%, #FF8A65 100%);
+  --moyo-gradient-dark: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
+  --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --max-width: 1200px;
+  --section-padding: 100px 24px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-stack);
+  color: var(--moyo-dark);
+  background: var(--moyo-white);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(-3deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-60px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(60px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.15); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.15); }
+  70% { transform: scale(1); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-5 { transition-delay: 0.5s; }
+
+/* Navigation */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: 16px 0;
+  transition: all 0.3s ease;
+  background: transparent;
+}
+
+.nav.scrolled {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  padding: 12px 0;
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.nav-logo {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--moyo-white);
+  transition: color 0.3s;
+  letter-spacing: -0.5px;
+}
+
+.nav.scrolled .nav-logo {
+  color: var(--moyo-dark);
+}
+
+.nav-links {
+  display: flex;
+  list-style: none;
+  gap: 32px;
+  align-items: center;
+}
+
+.nav-links a {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: color 0.3s;
+}
+
+.nav.scrolled .nav-links a {
+  color: var(--moyo-gray-dark);
+}
+
+.nav-links a:hover {
+  color: var(--moyo-white);
+}
+
+.nav.scrolled .nav-links a:hover {
+  color: var(--moyo-pink);
+}
+
+.nav-cta {
+  background: var(--moyo-white) !important;
+  color: var(--moyo-pink) !important;
+  padding: 10px 24px;
+  border-radius: 50px;
+  font-weight: 600 !important;
+  transition: transform 0.3s, box-shadow 0.3s !important;
+}
+
+.nav-cta:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
+}
+
+.nav.scrolled .nav-cta {
+  background: var(--moyo-pink) !important;
+  color: var(--moyo-white) !important;
+}
+
+.nav.scrolled .nav-cta:hover {
+  box-shadow: 0 4px 20px rgba(255, 45, 85, 0.4);
+}
+
+.mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.mobile-toggle span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--moyo-white);
+  margin: 6px 0;
+  transition: all 0.3s;
+  border-radius: 2px;
+}
+
+.nav.scrolled .mobile-toggle span {
+  background: var(--moyo-dark);
+}
+
+/* Hero Section */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding-top: 80px;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(255, 45, 85, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(255, 107, 138, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(255, 138, 101, 0.08) 0%, transparent 50%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.hero-text {
+  animation: fadeInUp 1s ease forwards;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 45, 85, 0.15);
+  border: 1px solid rgba(255, 45, 85, 0.3);
+  color: var(--moyo-pink-light);
+  padding: 8px 18px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.hero h1 {
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-weight: 800;
+  color: var(--moyo-white);
+  line-height: 1.08;
+  letter-spacing: -2px;
+  margin-bottom: 20px;
+}
+
+.hero h1 .highlight {
+  background: var(--moyo-gradient);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 4s ease infinite;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.65);
+  max-width: 480px;
+  margin-bottom: 36px;
+  line-height: 1.7;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--moyo-gradient);
+  color: var(--moyo-white);
+  padding: 16px 36px;
+  border-radius: 60px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 40px rgba(255, 45, 85, 0.4);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--moyo-white);
+  padding: 16px 36px;
+  border-radius: 60px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.hero-visual {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 1.2s ease forwards;
+}
+
+.phone-mockup {
+  width: 280px;
+  height: 560px;
+  background: linear-gradient(145deg, #2c2c2e, #1c1c1e);
+  border-radius: 40px;
+  padding: 12px;
+  box-shadow:
+    0 40px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  animation: float 6s ease-in-out infinite;
+}
+
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, var(--moyo-pink) 0%, var(--moyo-pink-dark) 100%);
+  border-radius: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.phone-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 30px 30px 0 0;
+}
+
+.phone-heart {
+  font-size: 4rem;
+  color: var(--moyo-white);
+  animation: heartbeat 2s ease-in-out infinite;
+  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.2));
+}
+
+.phone-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 16px;
+  letter-spacing: 1px;
+}
+
+.floating-hearts {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.floating-heart {
+  position: absolute;
+  color: var(--moyo-pink);
+  opacity: 0.15;
+  font-size: 2rem;
+  animation: floatSlow 8s ease-in-out infinite;
+}
+
+.floating-heart:nth-child(1) { top: 10%; left: 5%; animation-delay: 0s; font-size: 3rem; }
+.floating-heart:nth-child(2) { top: 60%; left: -10%; animation-delay: 2s; font-size: 2rem; }
+.floating-heart:nth-child(3) { top: 20%; right: -5%; animation-delay: 4s; font-size: 2.5rem; }
+.floating-heart:nth-child(4) { bottom: 15%; right: 10%; animation-delay: 1s; font-size: 1.5rem; }
+.floating-heart:nth-child(5) { top: 45%; left: 15%; animation-delay: 3s; font-size: 1.8rem; }
+
+/* Features Section */
+.features {
+  padding: var(--section-padding);
+  background: var(--moyo-white);
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.section-label {
+  display: inline-block;
+  background: var(--moyo-light-pink);
+  color: var(--moyo-pink);
+  padding: 6px 18px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: var(--moyo-dark);
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+}
+
+.section-subtitle {
+  font-size: 1.15rem;
+  color: var(--moyo-gray);
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.feature-card {
+  background: var(--moyo-light-pink);
+  border-radius: 24px;
+  padding: 36px 28px;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--moyo-gradient);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(255, 45, 85, 0.12);
+}
+
+.feature-card:hover::before {
+  transform: scaleX(1);
+}
+
+.feature-icon {
+  width: 60px;
+  height: 60px;
+  background: var(--moyo-gradient);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  margin-bottom: 20px;
+  color: var(--moyo-white);
+  box-shadow: 0 8px 24px rgba(255, 45, 85, 0.25);
+}
+
+.feature-card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--moyo-dark);
+  margin-bottom: 10px;
+}
+
+.feature-card p {
+  font-size: 0.95rem;
+  color: var(--moyo-gray);
+  line-height: 1.65;
+}
+
+/* How It Works */
+.how-it-works {
+  padding: var(--section-padding);
+  background: var(--moyo-light-pink);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  position: relative;
+}
+
+.steps::before {
+  content: '';
+  position: absolute;
+  top: 48px;
+  left: calc(16.67% + 20px);
+  right: calc(16.67% + 20px);
+  height: 2px;
+  background: linear-gradient(90deg, var(--moyo-pink), var(--moyo-pink-light));
+  opacity: 0.3;
+}
+
+.step {
+  text-align: center;
+  position: relative;
+}
+
+.step-number {
+  width: 96px;
+  height: 96px;
+  background: var(--moyo-white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 28px;
+  box-shadow: 0 12px 40px rgba(255, 45, 85, 0.12);
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.step:hover .step-number {
+  transform: scale(1.1);
+  box-shadow: 0 16px 50px rgba(255, 45, 85, 0.2);
+}
+
+.step-number .icon {
+  font-size: 2.2rem;
+}
+
+.step-number .num {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 32px;
+  height: 32px;
+  background: var(--moyo-gradient);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--moyo-white);
+}
+
+.step h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--moyo-dark);
+  margin-bottom: 10px;
+}
+
+.step p {
+  font-size: 0.95rem;
+  color: var(--moyo-gray);
+  max-width: 280px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+/* Stats Section */
+.stats {
+  padding: 80px 24px;
+  background: var(--moyo-dark);
+  position: relative;
+  overflow: hidden;
+}
+
+.stats::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(255, 45, 85, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(255, 138, 101, 0.08) 0%, transparent 50%);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  position: relative;
+  z-index: 1;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  font-weight: 800;
+  color: var(--moyo-white);
+  margin-bottom: 4px;
+  letter-spacing: -1px;
+}
+
+.stat-number .accent {
+  color: var(--moyo-pink);
+}
+
+.stat-label {
+  font-size: 1rem;
+  color: var(--moyo-gray);
+  font-weight: 500;
+}
+
+/* Testimonials */
+.testimonials {
+  padding: var(--section-padding);
+  background: var(--moyo-white);
+}
+
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.testimonial-card {
+  background: var(--moyo-light-pink);
+  border-radius: 24px;
+  padding: 36px 28px;
+  position: relative;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.testimonial-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(255, 45, 85, 0.1);
+}
+
+.testimonial-quote {
+  font-size: 2.5rem;
+  color: var(--moyo-pink);
+  line-height: 1;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.testimonial-text {
+  font-size: 1.05rem;
+  color: var(--moyo-gray-dark);
+  line-height: 1.7;
+  margin-bottom: 24px;
+  font-style: italic;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.testimonial-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--moyo-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: var(--moyo-white);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.testimonial-name {
+  font-weight: 700;
+  color: var(--moyo-dark);
+  font-size: 1rem;
+}
+
+.testimonial-location {
+  font-size: 0.85rem;
+  color: var(--moyo-gray);
+}
+
+.testimonial-stars {
+  color: #FFB800;
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+/* Download Section */
+.download {
+  padding: var(--section-padding);
+  background: var(--moyo-light-pink);
+  position: relative;
+  overflow: hidden;
+}
+
+.download::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at center, rgba(255, 45, 85, 0.05) 0%, transparent 50%);
+}
+
+.download-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 60px;
+  position: relative;
+  z-index: 1;
+}
+
+.download-text h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: var(--moyo-dark);
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+}
+
+.download-text p {
+  font-size: 1.15rem;
+  color: var(--moyo-gray);
+  margin-bottom: 32px;
+  max-width: 440px;
+  line-height: 1.7;
+}
+
+.store-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.store-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--moyo-dark);
+  color: var(--moyo-white);
+  padding: 14px 28px;
+  border-radius: 14px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.store-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.store-btn .store-icon {
+  font-size: 1.6rem;
+}
+
+.store-btn .store-label {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  display: block;
+}
+
+.store-btn .store-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.qr-placeholder {
+  width: 180px;
+  height: 180px;
+  background: var(--moyo-white);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(255, 45, 85, 0.1);
+  flex-shrink: 0;
+}
+
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  width: 98px;
+  height: 98px;
+}
+
+.qr-cell {
+  border-radius: 2px;
+}
+
+.qr-cell.filled {
+  background: var(--moyo-dark);
+}
+
+.qr-cell.empty {
+  background: transparent;
+}
+
+.qr-label {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: var(--moyo-gray);
+  font-weight: 600;
+}
+
+/* Footer */
+.footer {
+  background: var(--moyo-darker);
+  padding: 60px 24px 30px;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 48px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding-bottom: 40px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.footer-brand .footer-logo {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--moyo-white);
+  margin-bottom: 16px;
+}
+
+.footer-brand p {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  max-width: 320px;
+  margin-bottom: 20px;
+}
+
+.footer-social {
+  display: flex;
+  gap: 12px;
+}
+
+.social-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.social-icon:hover {
+  background: var(--moyo-pink);
+  color: var(--moyo-white);
+  transform: translateY(-2px);
+}
+
+.footer-column h4 {
+  color: var(--moyo-white);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footer-column ul {
+  list-style: none;
+}
+
+.footer-column li {
+  margin-bottom: 10px;
+}
+
+.footer-column a {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.9rem;
+  transition: color 0.3s;
+}
+
+.footer-column a:hover {
+  color: var(--moyo-pink-light);
+}
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding-top: 24px;
+}
+
+.footer-bottom p {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.85rem;
+}
+
+.footer-flag {
+  font-size: 1.2rem;
+  margin-right: 6px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 1024px) {
+  .hero-content {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 40px;
+  }
+
+  .hero p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .hero-buttons {
+    justify-content: center;
+  }
+
+  .hero-visual {
+    display: none;
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --section-padding: 72px 20px;
+  }
+
+  .nav-links {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(28, 28, 30, 0.98);
+    backdrop-filter: blur(20px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .nav-links.open {
+    display: flex;
+  }
+
+  .nav-links a {
+    font-size: 1.3rem;
+    color: var(--moyo-white) !important;
+  }
+
+  .mobile-toggle {
+    display: block;
+    z-index: 1001;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .steps {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .steps::before {
+    display: none;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 36px;
+  }
+
+  .testimonials-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .download-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .store-buttons {
+    justify-content: center;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    text-align: center;
+  }
+
+  .footer-brand p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .footer-social {
+    justify-content: center;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 2.4rem;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .btn-primary, .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .store-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">Moyo</a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#testimonials">Stories</a></li>
+      <li><a href="#download" class="nav-cta">Download</a></li>
+    </ul>
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero">
+  <div class="floating-hearts">
+    <div class="floating-heart">&#10084;</div>
+    <div class="floating-heart">&#10084;</div>
+    <div class="floating-heart">&#10084;</div>
+    <div class="floating-heart">&#10084;</div>
+    <div class="floating-heart">&#10084;</div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-text">
+      <div class="hero-badge">
+        <span>&#10084;</span> Made with love in Kenya
+      </div>
+      <h1>Find Your<br><span class="highlight">Moyo</span></h1>
+      <p>Kenya's #1 dating app. Meet incredible people near you, spark real connections, and find the love story you've been waiting for.</p>
+      <div class="hero-buttons">
+        <a href="#download" class="btn-primary">
+          <span>&#11088;</span> Download Now
+        </a>
+        <a href="#how-it-works" class="btn-secondary">
+          <span>&#9654;</span> Learn More
+        </a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="phone-mockup">
+        <div class="phone-screen">
+          <div class="phone-heart">&#10084;</div>
+          <div class="phone-text">MOYO</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Features</span>
+      <h2 class="section-title">Everything you need to find love</h2>
+      <p class="section-subtitle">Packed with features designed to make your dating journey exciting, safe, and authentic.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon">&#129504;</div>
+        <h3>Smart Matching</h3>
+        <p>Our AI-powered algorithm learns your preferences to suggest compatible matches tailored just for you.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon">&#128274;</div>
+        <h3>Safe & Secure</h3>
+        <p>Profile verification, photo checks, and safety tools so you can date with confidence and peace of mind.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon">&#128179;</div>
+        <h3>M-PESA Payments</h3>
+        <p>Upgrade to premium easily with M-PESA. Fast, familiar, and trusted by millions of Kenyans.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-4">
+        <div class="feature-icon">&#127909;</div>
+        <h3>Video Profiles</h3>
+        <p>Share your story with short videos. Show the real you and make a memorable first impression.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-5">
+        <div class="feature-icon">&#11088;</div>
+        <h3>Super Likes</h3>
+        <p>Stand out from the crowd with Super Likes. Let someone special know you're truly interested.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-5">
+        <div class="feature-icon">&#127775;</div>
+        <h3>Premium Features</h3>
+        <p>Unlock unlimited likes, see who liked you, and access exclusive features to boost your profile.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">How It Works</span>
+      <h2 class="section-title">Start meeting people in minutes</h2>
+      <p class="section-subtitle">Getting started with Moyo is simple. Three steps to your next great connection.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal reveal-delay-1">
+        <div class="step-number">
+          <span class="icon">&#128100;</span>
+          <span class="num">1</span>
+        </div>
+        <h3>Create Your Profile</h3>
+        <p>Sign up in seconds, add your photos, and tell the world what makes you unique.</p>
+      </div>
+      <div class="step reveal reveal-delay-2">
+        <div class="step-number">
+          <span class="icon">&#128172;</span>
+          <span class="num">2</span>
+        </div>
+        <h3>Swipe & Match</h3>
+        <p>Browse profiles, swipe right on people you like, and start matching instantly.</p>
+      </div>
+      <div class="step reveal reveal-delay-3">
+        <div class="step-number">
+          <span class="icon">&#128149;</span>
+          <span class="num">3</span>
+        </div>
+        <h3>Chat & Connect</h3>
+        <p>Found a match? Send a message, share a video, and build a real connection.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats Section -->
+<section class="stats">
+  <div class="stats-grid">
+    <div class="stat-item reveal reveal-delay-1">
+      <div class="stat-number" data-target="10000">0<span class="accent">+</span></div>
+      <div class="stat-label">Users</div>
+    </div>
+    <div class="stat-item reveal reveal-delay-2">
+      <div class="stat-number" data-target="5000">0<span class="accent">+</span></div>
+      <div class="stat-label">Matches Made</div>
+    </div>
+    <div class="stat-item reveal reveal-delay-3">
+      <div class="stat-number" data-target="47">0</div>
+      <div class="stat-label">Counties</div>
+    </div>
+    <div class="stat-item reveal reveal-delay-4">
+      <div class="stat-number" data-target="50000">0<span class="accent">+</span></div>
+      <div class="stat-label">Messages Sent</div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section class="testimonials" id="testimonials">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Love Stories</span>
+      <h2 class="section-title">Real people, real connections</h2>
+      <p class="section-subtitle">Hear from Moyo users who found meaningful relationships through our platform.</p>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card reveal reveal-delay-1">
+        <div class="testimonial-quote">&#8220;</div>
+        <p class="testimonial-text">I was skeptical about dating apps, but Moyo changed my mind. I matched with my partner last year and we've been inseparable since. The verification feature made me feel safe from the start.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">A</div>
+          <div>
+            <div class="testimonial-name">Amara Wanjiku</div>
+            <div class="testimonial-location">Nairobi, 28</div>
+            <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal reveal-delay-2">
+        <div class="testimonial-quote">&#8220;</div>
+        <p class="testimonial-text">The video profiles are a game changer! You really get to see someone's personality before you even chat. Met my girlfriend on Moyo and she's absolutely amazing. Asante sana!</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">K</div>
+          <div>
+            <div class="testimonial-name">Kevin Ochieng</div>
+            <div class="testimonial-location">Mombasa, 31</div>
+            <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal reveal-delay-3">
+        <div class="testimonial-quote">&#8220;</div>
+        <p class="testimonial-text">I love that I can pay for premium with M-PESA. No need for credit cards! The smart matching really works too. I've met incredible people in Nakuru that I never would have crossed paths with.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">F</div>
+          <div>
+            <div class="testimonial-name">Faith Njeri</div>
+            <div class="testimonial-location">Nakuru, 25</div>
+            <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Download Section -->
+<section class="download" id="download">
+  <div class="container">
+    <div class="download-content">
+      <div class="download-text reveal">
+        <h2>Ready to find your<br>Moyo?</h2>
+        <p>Join thousands of Kenyans who are already making meaningful connections. Download Moyo today and start your love story.</p>
+        <div class="store-buttons">
+          <a href="#" class="store-btn">
+            <span class="store-icon">&#128241;</span>
+            <div>
+              <span class="store-label">Download on the</span>
+              <span class="store-name">App Store</span>
+            </div>
+          </a>
+          <a href="#" class="store-btn">
+            <span class="store-icon">&#128241;</span>
+            <div>
+              <span class="store-label">Get it on</span>
+              <span class="store-name">Google Play</span>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="qr-placeholder reveal reveal-delay-2">
+        <div class="qr-grid">
+          <div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div>
+          <div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div>
+          <div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div>
+          <div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div>
+          <div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div>
+          <div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div>
+          <div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell empty"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div><div class="qr-cell filled"></div>
+        </div>
+        <span class="qr-label">Scan to Download</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="footer-logo">Moyo</div>
+      <p>Kenya's most trusted dating app. Built with love for the African heart. Find meaningful connections, safely and authentically.</p>
+      <div class="footer-social">
+        <a href="#" class="social-icon" aria-label="Twitter">&#120143;</a>
+        <a href="#" class="social-icon" aria-label="Instagram">&#9737;</a>
+        <a href="#" class="social-icon" aria-label="Facebook">f</a>
+        <a href="#" class="social-icon" aria-label="TikTok">&#9835;</a>
+      </div>
+    </div>
+    <div class="footer-column">
+      <h4>Product</h4>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#">Premium</a></li>
+        <li><a href="#">Download</a></li>
+        <li><a href="#">Updates</a></li>
+      </ul>
+    </div>
+    <div class="footer-column">
+      <h4>Company</h4>
+      <ul>
+        <li><a href="#">About Us</a></li>
+        <li><a href="#">Careers</a></li>
+        <li><a href="#">Blog</a></li>
+        <li><a href="#">Press</a></li>
+      </ul>
+    </div>
+    <div class="footer-column">
+      <h4>Support</h4>
+      <ul>
+        <li><a href="#">Safety Tips</a></li>
+        <li><a href="#">Privacy Policy</a></li>
+        <li><a href="#">Terms of Service</a></li>
+        <li><a href="#">Contact Us</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; 2026 Moyo. All rights reserved.</p>
+    <p><span class="footer-flag">&#127480;&#127466;</span> Made with love in Kenya</p>
+  </div>
+</footer>
+
+<script>
+(function() {
+  // Navigation scroll effect
+  var nav = document.getElementById('nav');
+  var lastScroll = 0;
+  window.addEventListener('scroll', function() {
+    var currentScroll = window.pageYOffset;
+    if (currentScroll > 60) {
+      nav.classList.add('scrolled');
+    } else {
+      nav.classList.remove('scrolled');
+    }
+    lastScroll = currentScroll;
+  });
+
+  // Mobile menu toggle
+  var toggle = document.getElementById('mobileToggle');
+  var links = document.getElementById('navLinks');
+  toggle.addEventListener('click', function() {
+    links.classList.toggle('open');
+  });
+
+  // Close mobile menu on link click
+  var navAnchors = links.querySelectorAll('a');
+  for (var i = 0; i < navAnchors.length; i++) {
+    navAnchors[i].addEventListener('click', function() {
+      links.classList.remove('open');
+    });
+  }
+
+  // Scroll reveal
+  var reveals = document.querySelectorAll('.reveal');
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+  reveals.forEach(function(el) {
+    observer.observe(el);
+  });
+
+  // Counter animation
+  var statNumbers = document.querySelectorAll('.stat-number[data-target]');
+  var countersStarted = false;
+
+  var counterObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting && !countersStarted) {
+        countersStarted = true;
+        statNumbers.forEach(function(el) {
+          var target = parseInt(el.getAttribute('data-target'), 10);
+          var accent = el.querySelector('.accent');
+          var suffix = accent ? accent.outerHTML : '';
+          var duration = 2000;
+          var start = 0;
+          var startTime = null;
+
+          function easeOutCubic(t) {
+            return 1 - Math.pow(1 - t, 3);
+          }
+
+          function animate(timestamp) {
+            if (!startTime) startTime = timestamp;
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            var eased = easeOutCubic(progress);
+            var current = Math.floor(eased * target);
+            var formatted = current >= 1000 ? current.toLocaleString() : current;
+            el.innerHTML = formatted + suffix;
+            if (progress < 1) {
+              requestAnimationFrame(animate);
+            }
+          }
+
+          requestAnimationFrame(animate);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+
+  var statsSection = document.querySelector('.stats');
+  if (statsSection) {
+    counterObserver.observe(statsSection);
+  }
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+    anchor.addEventListener('click', function(e) {
+      var targetId = this.getAttribute('href');
+      if (targetId === '#') return;
+      var target = document.querySelector(targetId);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

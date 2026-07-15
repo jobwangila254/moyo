@@ -24,6 +24,8 @@ router.post(
   validation.sendMessage,
   userController.sendMessage,
 );
+router.post('/messages/:messageId/reactions', authenticate, userController.toggleReaction);
+router.delete('/messages/:messageId/reactions', authenticate, userController.removeReaction);
 router.get('/likes/sent', authenticate, userController.getLikesSent);
 router.get('/likes/received', authenticate, userController.getLikesReceived);
 router.post('/likes/approve/:id', authenticate, validation.paramId, userController.approveLike);
@@ -43,5 +45,6 @@ router.post('/flag-photo', authenticate, userController.flagPhoto);
 router.post('/complete-onboarding', authenticate, userController.completeOnboarding);
 router.get('/profile-views', authenticate, userController.getProfileViews);
 router.post('/boost', authenticate, userController.boostProfile);
+router.get('/superlikes', authenticate, userController.getSuperLikeQueue);
 
 module.exports = router;

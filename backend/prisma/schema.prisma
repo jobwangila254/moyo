@@ -27,6 +27,7 @@ model User {
   hobbies   String   @default("[]")
   photos    String   @default("[]")
   profilePicUrl String?
+  videoUrl     String?
 
   phoneVerificationCode String?
   phoneVerified         Boolean  @default(false)
@@ -35,6 +36,7 @@ model User {
   freeUnlocksRemaining  Int      @default(0)
   unlimitedChat         Boolean  @default(false)
   chatUnlockDate        DateTime?
+  role                  String   @default("USER")
   isActive              Boolean  @default(true)
   onboardingComplete    Boolean  @default(false)
   boostedUntil          DateTime?
@@ -54,9 +56,27 @@ model User {
   transactions    Transaction[]
   events          UserEvent[]
   settings        UserSettings?
+  messageReactions MessageReaction[]
+  subscriptions   Subscription[]
+
+  superLikeReceived SuperLikeQueue[] @relation("SuperLikeReceiver")
+  superLikeSent     SuperLikeQueue[] @relation("SuperLikeSender")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SuperLikeQueue {
+  id            Int      @id @default(autoincrement())
+  superlikedId  Int
+  superlikerId  Int
+  createdAt     DateTime @default(now())
+  viewed        Boolean  @default(false)
+
+  superliked    User     @relation("SuperLikeReceiver", fields: [superlikedId], references: [id])
+  superliker    User     @relation("SuperLikeSender", fields: [superlikerId], references: [id])
+
+  @@unique([superlikedId, superlikerId])
 }
 
 model County {
@@ -102,6 +122,7 @@ model Message {
   createdAt DateTime @default(now())
 
   match     Match    @relation(fields: [matchId], references: [id])
+  reactions MessageReaction[]
 }
 
 model Transaction {
@@ -175,4 +196,30 @@ model UserSettings {
   profileVisible     Boolean  @default(true)
 
   user               User     @relation(fields: [userId], references: [id])
+}
+
+model MessageReaction {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+}
+
+model Subscription {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  plan        String
+  status      String    @default("active")
+  startDate   DateTime  @default(now())
+  endDate     DateTime
+  autoRenew   Boolean   @default(true)
+  cancelledAt DateTime?
+
+  user        User      @relation(fields: [userId], references: [id])
 }

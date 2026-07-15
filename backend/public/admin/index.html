@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moyo Admin</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--sidebar:#1c1c1e;--sidebar-w:240px;--bg:#f5f5f7;--card:#fff;--pink:#FF2D55;--text:#1c1c1e;--muted:#8e8e93;--border:#e5e5ea;--green:#34c759;--orange:#ff9500;--blue:#007AFF;--red:#ff3b30}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+.login-overlay{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-box{background:var(--card);border-radius:16px;padding:40px;width:380px;max-width:90vw}
+.login-box h1{font-size:24px;margin-bottom:4px;color:var(--text)}
+.login-box .sub{color:var(--muted);margin-bottom:24px;font-size:14px}
+.login-box input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;margin-bottom:12px;outline:none}
+.login-box input:focus{border-color:var(--pink)}
+.login-box button{width:100%;padding:12px;background:var(--pink);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+.login-box button:hover{opacity:.9}
+.login-box .error{color:var(--red);font-size:13px;margin-top:8px;display:none}
+aside{width:var(--sidebar-w);background:var(--sidebar);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .2s}
+.sidebar-header{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-header h2{font-size:18px;font-weight:700;color:var(--pink)}
+.sidebar-header span{font-size:12px;color:rgba(255,255,255,.5);display:block;margin-top:2px}
+nav{flex:1;padding:12px 0}
+nav a{display:flex;align-items:center;gap:12px;padding:10px 20px;color:rgba(255,255,255,.6);text-decoration:none;font-size:14px;font-weight:500;transition:all .15s}
+nav a:hover{color:#fff;background:rgba(255,255,255,.05)}
+nav a.active{color:var(--pink);background:rgba(255,45,85,.1)}
+nav a svg{width:18px;height:18px;flex-shrink:0}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.3)}
+.sidebar-footer button{background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:13px;padding:0}
+.sidebar-footer button:hover{color:#fff}
+main{margin-left:var(--sidebar-w);flex:1;padding:24px 32px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-header{margin-bottom:24px}
+.page-header h1{font-size:24px;font-weight:700}
+.page-header p{color:var(--muted);font-size:14px;margin-top:4px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:32px}
+.stat-card{background:var(--card);border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.stat-card .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.stat-card .value{font-size:28px;font-weight:700;margin-top:6px}
+.stat-card .value.pink{color:var(--pink)}
+.stat-card .value.green{color:var(--green)}
+.stat-card .value.orange{color:var(--orange)}
+.stat-card .value.blue{color:var(--blue)}
+.card{background:var(--card);border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-header h3{font-size:16px;font-weight:600}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:10px 12px;border-bottom:1px solid var(--border)}
+tr:hover td{background:rgba(0,0,0,.01)}
+.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600}
+.badge-premium{background:#ff2d5514;color:var(--pink)}
+.badge-free{background:#34c75914;color:var(--green)}
+.badge-admin{background:#007AFF14;color:var(--blue)}
+.badge-pending{background:#ff950014;color:var(--orange)}
+.badge-reviewed{background:#007AFF14;color:var(--blue)}
+.badge-dismissed{background:#8e8e9314;color:var(--muted)}
+.badge-resolved{background:#34c75914;color:var(--green)}
+.badge-active{background:#34c75914;color:var(--green)}
+.badge-inactive{background:#ff3b3014;color:var(--red)}
+.badge-flagged{background:#ff3b3014;color:var(--red)}
+.badge-approved{background:#34c75914;color:var(--green)}
+.btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+.btn:hover{background:var(--bg)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-pink{background:var(--pink);color:#fff;border-color:var(--pink)}
+.btn-pink:hover{opacity:.9}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-danger:hover{opacity:.9}
+.search-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.search-bar input,.search-bar select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none}
+.search-bar input{flex:1;min-width:200px}
+.search-bar input:focus,.search-bar select:focus{border-color:var(--pink)}
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px}
+.pagination button{padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;font-size:13px}
+.pagination button:hover{background:var(--bg)}
+.pagination button:disabled{opacity:.4;cursor:default}
+.pagination span{font-size:13px;color:var(--muted)}
+.chart-bars{display:flex;align-items:flex-end;gap:3px;height:120px;padding:8px 0}
+.chart-bar{flex:1;background:var(--pink);border-radius:3px 3px 0 0;min-width:6px;position:relative;transition:opacity .15s;cursor:pointer}
+.chart-bar:hover{opacity:.8}
+.chart-bar .tooltip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--sidebar);color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:10}
+.chart-bar:hover .tooltip{display:block}
+.chart-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px}
+.event-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+.event-row:last-child{border-bottom:none}
+.event-name{flex:1;font-size:13px;font-weight:500}
+.event-count{font-size:13px;color:var(--muted);font-weight:600}
+.event-bar-bg{width:120px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.event-bar-fill{height:100%;background:var(--pink);border-radius:3px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:24px;width:480px;max-width:90vw;max-height:80vh;overflow-y:auto}
+.modal h3{font-size:18px;font-weight:600;margin-bottom:16px}
+.modal label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;margin-top:12px}
+.modal input,.modal select,.modal textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none}
+.modal textarea{min-height:80px;resize:vertical}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.user-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.user-detail-grid .field{margin-bottom:4px}
+.user-detail-grid .field .label{font-size:11px;color:var(--muted);text-transform:uppercase}
+.user-detail-grid .field .val{font-size:14px;font-weight:500}
+.photo-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.photo-grid img{width:80px;height:80px;object-fit:cover;border-radius:8px}
+.empty{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+.mobile-toggle{display:none;position:fixed;top:12px;left:12px;z-index:150;background:var(--sidebar);color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer}
+@media(max-width:768px){
+  aside{transform:translateX(-100%)}
+  aside.open{transform:translateX(0)}
+  main{margin-left:0;padding:16px}
+  .mobile-toggle{display:block}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .user-detail-grid{grid-template-columns:1fr}
+  .search-bar{flex-direction:column}
+  .search-bar input{min-width:auto}
+}
+</style>
+</head>
+<body>
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h1>Moyo Admin</h1>
+    <div class="sub">Sign in to the admin dashboard</div>
+    <input type="text" id="loginPhone" placeholder="Phone number" autocomplete="off">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="doLogin()">Sign In</button>
+    <div class="error" id="loginError"></div>
+  </div>
+</div>
+
+<button class="mobile-toggle" onclick="document.querySelector('aside').classList.toggle('open')">&#9776;</button>
+
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <h2>Moyo</h2>
+    <span>Admin Dashboard</span>
+  </div>
+  <nav>
+    <a href="#" data-page="dashboard" class="active" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a href="#" data-page="users" onclick="showPage('users')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Users
+    </a>
+    <a href="#" data-page="reports" onclick="showPage('reports')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      Reports
+    </a>
+    <a href="#" data-page="analytics" onclick="showPage('analytics')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Analytics
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <span id="adminName"></span><br>
+    <button onclick="doLogout()">Sign Out</button>
+  </div>
+</aside>
+
+<main>
+  <div class="page active" id="page-dashboard">
+    <div class="page-header"><h1>Dashboard</h1><p>Overview of your platform</p></div>
+    <div class="stats-grid" id="overviewStats"></div>
+    <div class="card">
+      <div class="card-header"><h3>Signups (Last 30 Days)</h3></div>
+      <div class="chart-bars" id="signupChart"></div>
+      <div class="chart-labels" id="signupLabels"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-users">
+    <div class="page-header"><h1>Users</h1><p>Manage all users</p></div>
+    <div class="search-bar">
+      <input type="text" id="userSearch" placeholder="Search by name or phone..." onkeyup="debounce(loadUsers,300)()">
+      <select id="userTierFilter" onchange="loadUsers()">
+        <option value="">All Tiers</option>
+        <option value="FREE">Free</option>
+        <option value="PREMIUM">Premium</option>
+      </select>
+      <select id="userActiveFilter" onchange="loadUsers()">
+        <option value="">All Status</option>
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Age</th><th>County</th><th>Tier</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="usersTable"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="usersPagination"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-reports">
+    <div class="page-header"><h1>Reports</h1><p>Review user reports</p></div>
+    <div class="search-bar">
+      <select id="reportStatusFilter" onchange="loadReports()">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="reviewed">Reviewed</option>
+        <option value="dismissed">Dismissed</option>
+        <option value="resolved">Resolved</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Reporter</th><th>Reported</th><th>Reason</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="reportsTable"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="reportsPagination"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-analytics">
+    <div class="page-header"><h1>Analytics</h1><p>Platform event breakdown</p></div>
+    <div class="card">
+      <div class="card-header"><h3>Events by Type</h3></div>
+      <div id="eventsList"></div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <h3 id="userModalTitle">User Details</h3>
+    <div id="userModalContent"></div>
+    <div class="actions">
+      <button class="btn" onclick="closeModal('userModal')">Close</button>
+      <button class="btn btn-pink" onclick="saveUserEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let token = localStorage.getItem('adminToken');
+let currentUserPage = 1;
+let currentReportPage = 1;
+
+function debounce(fn, ms) { let t; return function() { clearTimeout(t); t = setTimeout(() => fn(), ms); }; }
+function $(id) { return document.getElementById(id); }
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  const page = $('page-' + name);
+  const link = document.querySelector(`nav a[data-page="${name}"]`);
+  if (page) page.classList.add('active');
+  if (link) link.classList.add('active');
+  document.querySelector('aside').classList.remove('open');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'users') loadUsers();
+  if (name === 'reports') loadReports();
+  if (name === 'analytics') loadAnalytics();
+}
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+  return res.json();
+}
+
+async function doLogin() {
+  const phone = $('loginPhone').value.trim();
+  const password = $('loginPassword').value;
+  const err = $('loginError');
+  try {
+    const data = await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ phone, password }) });
+    if (!data.success) { err.textContent = data.error; err.style.display = 'block'; return; }
+    token = data.data.token;
+    localStorage.setItem('adminToken', token);
+    $('adminName').textContent = data.data.user.name;
+    $('loginOverlay').style.display = 'none';
+    loadDashboard();
+  } catch (e) { err.textContent = 'Login failed'; err.style.display = 'block'; }
+}
+
+function doLogout() {
+  token = null;
+  localStorage.removeItem('adminToken');
+  $('loginOverlay').style.display = 'flex';
+  $('loginPhone').value = '';
+  $('loginPassword').value = '';
+  $('loginError').style.display = 'none';
+}
+
+function closeModal(id) { $(id).classList.remove('show'); }
+function formatNum(n) { return n == null ? '0' : n.toLocaleString(); }
+function formatDate(d) { return new Date(d).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function badge(cls, text) { return `<span class="badge badge-${cls}">${text}</span>`; }
+
+async function loadDashboard() {
+  try {
+    const [overview, signups] = await Promise.all([
+      api('/api/admin/analytics/overview'),
+      api('/api/admin/analytics/signups'),
+    ]);
+    if (overview.success) {
+      const d = overview.data;
+      $('overviewStats').innerHTML = [
+        statCard('Total Users', formatNum(d.totalUsers), 'pink'),
+        statCard('Active Users', formatNum(d.activeUsers), 'green'),
+        statCard('Premium Users', formatNum(d.premiumUsers), 'blue'),
+        statCard('Today Signups', formatNum(d.todayUsers), 'pink'),
+        statCard('Matches', formatNum(d.totalMatches), 'orange'),
+        statCard('Messages', formatNum(d.totalMessages), 'blue'),
+        statCard('Pending Reports', formatNum(d.pendingReports), 'orange'),
+        statCard('Flagged Photos', formatNum(d.flaggedPhotos), 'pink'),
+        statCard('Total Revenue', 'KES ' + formatNum(d.totalRevenue), 'green'),
+      ].join('');
+    }
+    if (signups.success && signups.data.length) {
+      const max = Math.max(...signups.data.map(d => d.count), 1);
+      const bars = signups.data.map(d => `<div class="chart-bar" style="height:${Math.max((d.count / max) * 100, 2)}%"><div class="tooltip">${d.date}: ${d.count}</div></div>`).join('');
+      $('signupChart').innerHTML = bars;
+      $('signupLabels').innerHTML = `<span>${signups.data[0].date}</span><span>${signups.data[signups.data.length - 1].date}</span>`;
+    }
+  } catch (e) { console.error(e); }
+}
+
+function statCard(label, value, color) {
+  return `<div class="stat-card"><div class="label">${label}</div><div class="value ${color}">${value}</div></div>`;
+}
+
+async function loadUsers() {
+  const search = $('userSearch').value;
+  const tier = $('userTierFilter').value;
+  const active = $('userActiveFilter').value;
+  try {
+    const res = await api(`/api/admin/users?page=${currentUserPage}&search=${encodeURIComponent(search)}&tier=${tier}&isActive=${active}`);
+    if (!res.success) return;
+    $('usersTable').innerHTML = res.data.length ? res.data.map(u => `<tr>
+      <td>${u.id}</td>
+      <td>${u.name}</td>
+      <td>${u.phone}</td>
+      <td>${u.age}</td>
+      <td>${u.county?.name || '-'}</td>
+      <td>${badge(u.tier === 'PREMIUM' ? 'premium' : 'free', u.tier)}</td>
+      <td>${u.role === 'ADMIN' ? badge('admin', 'Admin') : '-'}</td>
+      <td>${badge(u.isActive ? 'active' : 'inactive', u.isActive ? 'Active' : 'Inactive')}</td>
+      <td>${formatDate(u.createdAt)}</td>
+      <td>
+        <button class="btn btn-sm" onclick="editUser(${u.id})">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Deactivate</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="10" class="empty">No users found</td></tr>';
+    const p = res.pagination;
+    $('usersPagination').innerHTML = `<button onclick="currentUserPage--;loadUsers()" ${p.page <= 1 ? 'disabled' : ''}>Prev</button>
+      <span>Page ${p.page} of ${p.totalPages} (${p.total} total)</span>
+      <button onclick="currentUserPage++;loadUsers()" ${p.page >= p.totalPages ? 'disabled' : ''}>Next</button>`;
+  } catch (e) { console.error(e); }
+}
+
+async function editUser(id) {
+  try {
+    const res = await api(`/api/admin/users/${id}`);
+    if (!res.success) return;
+    const u = res.data;
+    $('userModalTitle').textContent = 'Edit User: ' + u.name;
+    $('userModalContent').innerHTML = `
+      <input type="hidden" id="editUserId" value="${u.id}">
+      <div class="user-detail-grid">
+        <div><label>Name</label><input id="editName" value="${u.name || ''}"></div>
+        <div><label>Bio</label><input id="editBio" value="${u.bio || ''}"></div>
+        <div><label>Occupation</label><input id="editOccupation" value="${u.occupation || ''}"></div>
+        <div><label>Tier</label><select id="editTier"><option value="FREE" ${u.tier === 'FREE' ? 'selected' : ''}>Free</option><option value="PREMIUM" ${u.tier === 'PREMIUM' ? 'selected' : ''}>Premium</option></select></div>
+        <div><label>Role</label><select id="editRole"><option value="USER" ${u.role === 'USER' ? 'selected' : ''}>User</option><option value="ADMIN" ${u.role === 'ADMIN' ? 'selected' : ''}>Admin</option></select></div>
+        <div><label>Photo Status</label><select id="editPhotoStatus"><option value="approved" ${u.photoModerationStatus === 'approved' ? 'selected' : ''}>Approved</option><option value="flagged" ${u.photoModerationStatus === 'flagged' ? 'selected' : ''}>Flagged</option></select></div>
+        <div><label>Phone Verified</label><select id="editPhoneVerified"><option value="true" ${u.phoneVerified ? 'selected' : ''}>Yes</option><option value="false" ${!u.phoneVerified ? 'selected' : ''}>No</option></select></div>
+      </div>
+      ${u.photos && u.photos.length ? '<label style="margin-top:12px">Photos</label><div class="photo-grid">' + u.photos.map(p => `<img src="${p}" alt="photo">`).join('') + '</div>' : ''}
+      ${u.reports && u.reports.length ? '<label style="margin-top:12px">Reports Against</label><div style="font-size:13px;margin-top:4px">' + u.reports.map(r => `<div style="padding:4px 0;border-bottom:1px solid var(--border)">${r.reason} — by ${r.reporter.name} (${formatDate(r.createdAt)})</div>`).join('') + '</div>' : ''}
+    `;
+    $('userModal').classList.add('show');
+  } catch (e) { console.error(e); }
+}
+
+async function saveUserEdit() {
+  const id = $('editUserId').value;
+  try {
+    await api(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: $('editName').value,
+        bio: $('editBio').value,
+        occupation: $('editOccupation').value,
+        tier: $('editTier').value,
+        role: $('editRole').value,
+        photoModerationStatus: $('editPhotoStatus').value,
+        phoneVerified: $('editPhoneVerified').value === 'true',
+      }),
+    });
+    closeModal('userModal');
+    loadUsers();
+  } catch (e) { console.error(e); }
+}
+
+async function deleteUser(id) {
+  if (!confirm('Deactivate this user?')) return;
+  try {
+    await api(`/api/admin/users/${id}`, { method: 'DELETE' });
+    loadUsers();
+  } catch (e) { console.error(e); }
+}
+
+async function loadReports() {
+  const status = $('reportStatusFilter').value;
+  try {
+    const res = await api(`/api/admin/reports?page=${currentReportPage}&status=${status}`);
+    if (!res.success) return;
+    $('reportsTable').innerHTML = res.data.length ? res.data.map(r => `<tr>
+      <td>${r.id}</td>
+      <td>${r.reporter.name} (${r.reporter.phone})</td>
+      <td>${r.reported.name} (${r.reported.phone})</td>
+      <td>${r.reason}</td>
+      <td>${badge(r.status, r.status)}</td>
+      <td>${formatDate(r.createdAt)}</td>
+      <td>
+        <select onchange="updateReport(${r.id},this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:11px">
+          <option value="">Change...</option>
+          <option value="pending">Pending</option>
+          <option value="reviewed">Reviewed</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="7" class="empty">No reports found</td></tr>';
+    const p = res.pagination;
+    $('reportsPagination').innerHTML = `<button onclick="currentReportPage--;loadReports()" ${p.page <= 1 ? 'disabled' : ''}>Prev</button>
+      <span>Page ${p.page} of ${p.totalPages} (${p.total} total)</span>
+      <button onclick="currentReportPage++;loadReports()" ${p.page >= p.totalPages ? 'disabled' : ''}>Next</button>`;
+  } catch (e) { console.error(e); }
+}
+
+async function updateReport(id, status) {
+  if (!status) return;
+  try {
+    await api(`/api/admin/reports/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    loadReports();
+  } catch (e) { console.error(e); }
+}
+
+async function loadAnalytics() {
+  try {
+    const res = await api('/api/admin/analytics/events');
+    if (!res.success) return;
+    const max = Math.max(...res.data.map(e => e.count), 1);
+    $('eventsList').innerHTML = res.data.length ? res.data.map(e => `<div class="event-row">
+      <div class="event-name">${e.eventType}</div>
+      <div class="event-bar-bg"><div class="event-bar-fill" style="width:${(e.count / max) * 100}%"></div></div>
+      <div class="event-count">${formatNum(e.count)}</div>
+    </div>`).join('') : '<div class="empty">No events recorded</div>';
+  } catch (e) { console.error(e); }
+}
+
+if (token) {
+  api('/api/admin/analytics/overview').then(res => {
+    if (res.success) {
+      $('loginOverlay').style.display = 'none';
+      $('adminName').textContent = 'Admin';
+      loadDashboard();
+    } else {
+      doLogout();
+    }
+  }).catch(() => doLogout());
+}
+</script>
+</body>
+</html>

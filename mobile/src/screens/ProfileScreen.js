@@ -33,6 +33,7 @@ export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [pendingPhotoRemove, setPendingPhotoRemove] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
@@ -142,6 +143,57 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const handlePickVideo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setFeedback({ type: 'error', message: 'We need media access to upload a video' });
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      quality: 1,
+      videoMaxDuration: 15,
+    });
+
+    if (result.canceled) {return;}
+
+    const asset = result.assets[0];
+    if (asset.duration && asset.duration > 15000) {
+      setFeedback({ type: 'error', message: 'Video must be 15 seconds or shorter' });
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      const filename = asset.fileName || `video_${Date.now()}.mp4`;
+
+      if (Platform.OS === 'web') {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        formData.append('video', blob, filename);
+      } else {
+        formData.append('video', { uri: asset.uri, type: asset.mimeType || 'video/mp4', name: filename });
+      }
+
+      const res = await uploadApi.uploadVideo(formData);
+      const { url } = res.data.data;
+      setUser(prev => ({ ...prev, videoUrl: url }));
+    } catch (error) {
+      setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to upload video' });
+    } finally { setUploadingVideo(false); }
+  };
+
+  const handleRemoveVideo = async () => {
+    try {
+      await uploadApi.deleteVideo();
+      setUser(prev => ({ ...prev, videoUrl: null }));
+    } catch (error) {
+      setFeedback({ type: 'error', message: 'Failed to remove video' });
+    }
+  };
+
   const handleDeleteAccount = () => {
     setShowDeleteConfirm(true);
   };
@@ -208,6 +260,32 @@ export default function ProfileScreen({ navigation }) {
           )}
           {(user?.photos?.length || 0) > 0 && (
             <Text style={styles.photoHint}>Long-press a photo to remove</Text>
+          )}
+        </View>
+        <View style={styles.videoSection}>
+          <Text style={styles.videoLabel}>Profile Video</Text>
+          <Text style={styles.videoHint}>Add a short video (max 15s)</Text>
+          {user?.videoUrl ? (
+            <View style={styles.videoPreviewRow}>
+              <View style={styles.videoThumbContainer}>
+                <MaterialIcons name="play-circle-filled" size={36} color="#FF2D55" />
+                <Text style={styles.videoThumbText}>Video added</Text>
+              </View>
+              <TouchableOpacity style={styles.videoRemoveBtn} onPress={handleRemoveVideo}>
+                <MaterialIcons name="delete" size={20} color="#FF3B30" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.videoAddBtn} onPress={handlePickVideo} disabled={uploadingVideo}>
+              {uploadingVideo ? (
+                <ActivityIndicator size="small" color="#FF2D55" />
+              ) : (
+                <>
+                  <MaterialIcons name="videocam" size={20} color="#FF2D55" />
+                  <Text style={styles.videoAddBtnText}>Upload Video</Text>
+                </>
+              )}
+            </TouchableOpacity>
           )}
         </View>
         <View style={styles.nameRow}>
@@ -414,6 +492,15 @@ const styles = StyleSheet.create({
   photoAddBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF2D55', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, gap: 6 },
   photoAddBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   photoHint: { fontSize: 11, color: '#8e8e93' },
+  videoSection: { alignItems: 'center', marginTop: 12, paddingHorizontal: 20 },
+  videoLabel: { fontSize: 13, fontWeight: '600', color: '#3a3a3c', marginBottom: 2 },
+  videoHint: { fontSize: 11, color: '#8e8e93', marginBottom: 8 },
+  videoPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  videoThumbContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF0F3', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, gap: 8 },
+  videoThumbText: { fontSize: 14, fontWeight: '500', color: '#FF2D55' },
+  videoRemoveBtn: { padding: 8 },
+  videoAddBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, gap: 6, borderWidth: 1, borderColor: '#FF2D55' },
+  videoAddBtnText: { color: '#FF2D55', fontSize: 14, fontWeight: '600' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { fontSize: 24, fontWeight: 'bold', color: '#1c1c1e' },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 },

@@ -221,15 +221,55 @@ async function main() {
   }
   console.log('  Created messages across match conversations');
 
+  console.log('Making user 1 (James Mwangi) an admin...');
+  await prisma.user.update({ where: { id: 1 }, data: { role: 'ADMIN' } });
+
+  console.log('Seeding reports...');
+  const reportReasons = ['Inappropriate photos', 'Fake profile', 'Harassment', 'Spam messages', 'Underage suspicion'];
+  const reportStatuses = ['pending', 'reviewed', 'dismissed', 'resolved'];
+  for (let i = 0; i < 8; i++) {
+    const reporterId = users[i].id;
+    const reportedId = users[20 + i].id;
+    if (reporterId !== reportedId) {
+      await prisma.report.create({
+        data: {
+          reporterId,
+          reportedId,
+          reason: reportReasons[i % reportReasons.length],
+          details: `User was reported for ${reportReasons[i % reportReasons.length].toLowerCase()}.`,
+          status: reportStatuses[i % reportStatuses.length],
+          createdAt: new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000),
+        },
+      }).catch(() => {});
+    }
+  }
+  console.log('  Created 8 reports');
+
+  console.log('Seeding events...');
+  const eventTypes = ['swipe_like', 'swipe_pass', 'swipe_superlike', 'message_sent', 'profile_viewed', 'profile_boosted', 'match_created', 'payment_completed', 'like_unlock', 'daily_chat_unlock'];
+  for (let i = 0; i < 200; i++) {
+    const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+    await prisma.userEvent.create({
+      data: {
+        userId: users[Math.floor(Math.random() * users.length)].id,
+        eventType,
+        createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+      },
+    }).catch(() => {});
+  }
+  console.log('  Created 200 events');
+
   console.log('');
   console.log('✅ Seed complete! 141 users across 47 counties (3 per county)');
   console.log('');
+  console.log('Admin: User 1 (James Mwangi) — role: ADMIN');
   console.log('Credentials for all users: Password123!');
   console.log('Sample logins:');
   for (let i = 0; i < 3; i++) {
     const u = users[i];
     const genderIcon = u.gender === 'male' ? '♂️' : '♀️';
-    console.log(`  ${u.phone} → ${u.name}, ${COUNTIES[u.countyId - 1]}, ${u.tier} ${genderIcon}`);
+    const roleTag = u.id === 1 ? ' [ADMIN]' : '';
+    console.log(`  ${u.phone} → ${u.name}${roleTag}, ${COUNTIES[u.countyId - 1]}, ${u.tier} ${genderIcon}`);
   }
 }
 

@@ -98,12 +98,25 @@ export const users = {
   getProfileViews: () => api.get('/users/profile-views'),
   boostProfile: () => api.post('/users/boost'),
   flagPhoto: (reason) => api.post('/users/flag-photo', { reason }),
+  getSuperLikeQueue: () => api.get('/users/superlikes'),
+  toggleReaction: (messageId, emoji) => api.post(`/users/messages/${messageId}/reactions`, { emoji }),
+  removeReaction: (messageId) => api.delete(`/users/messages/${messageId}/reactions`),
 };
 
 export const payments = {
   initiateSTKPush: (data) => api.post('/payments/stk-push', data),
+  processCardPayment: (data) => api.post('/payments/card', data),
+  bulkSTKPush: (data) => api.post('/payments/bulk-stk', data),
   getStatus: (transactionId) => api.get(`/payments/status/${transactionId}`),
   getHistory: () => api.get('/payments/history'),
+  getPaymentHistory: (params) => api.get('/payments/payment-history', { params }),
+};
+
+export const subscriptions = {
+  getCurrent: () => api.get('/payments/subscriptions/current'),
+  cancel: (id) => api.post(`/payments/subscriptions/${id}/cancel`),
+  getHistory: () => api.get('/payments/subscriptions/history'),
+  changePlan: (data) => api.post('/payments/subscriptions/change', data),
 };
 
 export const uploadApi = {
@@ -111,6 +124,10 @@ export const uploadApi = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   deletePhoto: (url) => api.delete('/upload/photo', { data: { url } }),
+  uploadVideo: (formData) => api.post('/upload/video', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  deleteVideo: () => api.delete('/upload/video'),
 };
 
 export default api;
