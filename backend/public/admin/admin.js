@@ -1,16 +1,16 @@
-const API = window.location.origin;
-let token = localStorage.getItem('adminToken');
-let currentUserPage = 1;
-let currentReportPage = 1;
+var API = window.location.origin;
+var token = localStorage.getItem('adminToken');
+var currentUserPage = 1;
+var currentReportPage = 1;
+var adminNameStr = '';
 
-function debounce(fn, ms) { let t; return function() { clearTimeout(t); t = setTimeout(() => fn(), ms); }; }
 function $(id) { return document.getElementById(id); }
 
 function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-  const page = $('page-' + name);
-  const link = document.querySelector('nav a[data-page="' + name + '"]');
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('nav a').forEach(function(a) { a.classList.remove('active'); });
+  var page = $('page-' + name);
+  var link = document.querySelector('nav a[data-page="' + name + '"]');
   if (page) page.classList.add('active');
   if (link) link.classList.add('active');
   document.querySelector('aside').classList.remove('open');
@@ -29,6 +29,13 @@ async function api(path, opts) {
   return res.json();
 }
 
+function setAdminUI(name) {
+  adminNameStr = name || 'Admin';
+  $('adminName').textContent = adminNameStr;
+  var initials = adminNameStr.split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
+  $('adminAvatar').textContent = initials;
+}
+
 async function doLogin() {
   var phone = $('loginPhone').value.trim();
   var password = $('loginPassword').value;
@@ -38,7 +45,7 @@ async function doLogin() {
     if (!data.success) { err.textContent = data.error; err.style.display = 'block'; return; }
     token = data.data.token;
     localStorage.setItem('adminToken', token);
-    $('adminName').textContent = data.data.user.name;
+    setAdminUI(data.data.user.name);
     $('loginOverlay').style.display = 'none';
     loadDashboard();
   } catch (e) { err.textContent = 'Login failed'; err.style.display = 'block'; }
@@ -57,6 +64,18 @@ function closeModal(id) { $(id).classList.remove('show'); }
 function formatNum(n) { return n == null ? '0' : n.toLocaleString(); }
 function formatDate(d) { return new Date(d).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function badge(cls, text) { return '<span class="badge badge-' + cls + '">' + text + '</span>'; }
+
+var statIcons = {
+  'Total Users': '\u{1F465}',
+  'Active Users': '\u2705',
+  'Premium Users': '\u2B50',
+  'Today Signups': '\u{1F195}',
+  'Matches': '\u{1F496}',
+  'Messages': '\u{1F4AC}',
+  'Pending Reports': '\u{1F6A8}',
+  'Flagged Photos': '\u{1F6AB}',
+  'Total Revenue': '\u{1F4B0}',
+};
 
 async function loadDashboard() {
   try {
@@ -92,7 +111,8 @@ async function loadDashboard() {
 }
 
 function statCard(label, value, color) {
-  return '<div class="stat-card"><div class="label">' + label + '</div><div class="value ' + color + '">' + value + '</div></div>';
+  var icon = statIcons[label] || '\u{1F4CA}';
+  return '<div class="stat-card"><div class="stat-icon ' + color + '">' + icon + '</div><div class="label">' + label + '</div><div class="value">' + value + '</div></div>';
 }
 
 async function loadUsers() {
@@ -184,7 +204,7 @@ async function loadReports() {
     var res = await api('/api/admin/reports?page=' + currentReportPage + '&status=' + status);
     if (!res.success) return;
     $('reportsTable').innerHTML = res.data.length ? res.data.map(function(r) {
-      return '<tr><td>' + r.id + '</td><td>' + r.reporter.name + ' (' + r.reporter.phone + ')</td><td>' + r.reported.name + ' (' + r.reported.phone + ')</td><td>' + r.reason + '</td><td>' + badge(r.status, r.status) + '</td><td>' + formatDate(r.createdAt) + '</td><td><select class="report-status-select" data-id="' + r.id + '" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:11px"><option value="">Change...</option><option value="pending">Pending</option><option value="reviewed">Reviewed</option><option value="dismissed">Dismissed</option><option value="resolved">Resolved</option></select></td></tr>';
+      return '<tr><td>' + r.id + '</td><td>' + r.reporter.name + ' (' + r.reporter.phone + ')</td><td>' + r.reported.name + ' (' + r.reported.phone + ')</td><td>' + r.reason + '</td><td>' + badge(r.status, r.status) + '</td><td>' + formatDate(r.createdAt) + '</td><td><select class="report-status-select" data-id="' + r.id + '" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);font-size:11px;background:rgba(255,255,255,.03);color:var(--text)"><option value="">Change...</option><option value="pending">Pending</option><option value="reviewed">Reviewed</option><option value="dismissed">Dismissed</option><option value="resolved">Resolved</option></select></td></tr>';
     }).join('') : '<tr><td colspan="7" class="empty">No reports found</td></tr>';
     var p = res.pagination;
     var prevDisabled = p.page <= 1 ? ' disabled' : '';
@@ -229,6 +249,8 @@ document.addEventListener('DOMContentLoaded', function() {
   $('loginPassword').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
   $('loginPhone').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
 
+  $('userModal').addEventListener('click', function(e) { if (e.target === $('userModal')) closeModal('userModal'); });
+
   document.querySelectorAll('nav a[data-page]').forEach(function(a) {
     a.addEventListener('click', function(e) {
       e.preventDefault();
@@ -249,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
     api('/api/admin/analytics/overview').then(function(res) {
       if (res.success) {
         $('loginOverlay').style.display = 'none';
-        $('adminName').textContent = 'Admin';
+        setAdminUI('Admin');
         loadDashboard();
       } else {
         doLogout();
