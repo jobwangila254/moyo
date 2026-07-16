@@ -362,7 +362,7 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.photoRow}>
               {photos.map((uri, i) => (
                 <View key={i} style={styles.photoThumb}>
-                  <Image source={{ uri }} style={styles.photoImage} />
+                  <Image source={{ uri }} style={styles.photoImage} resizeMode="cover" />
                   <TouchableOpacity style={styles.photoRemove} onPress={() => handleRemovePhoto(i)}>
                     <MaterialIcons name="close" size={14} color="#fff" />
                   </TouchableOpacity>
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   modalItemTextActive: { color: '#FF2D55', fontWeight: '600' },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   photoThumb: { width: 80, height: 80, borderRadius: 12, overflow: 'hidden' },
-  photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photoImage: { width: '100%', height: '100%' },
   photoRemove: { position: 'absolute', top: 2, right: 2, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
   addPhotoButton: { width: 80, height: 80, borderRadius: 12, borderWidth: 2, borderColor: '#f0d0d8', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFAFB' },
   loadingContainer: { padding: 40, alignItems: 'center' },

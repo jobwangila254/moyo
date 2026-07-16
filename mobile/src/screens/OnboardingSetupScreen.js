@@ -121,7 +121,7 @@ export default function OnboardingSetupScreen({ navigation }) {
       <View style={styles.photoGrid}>
         {photos.map((url, i) => (
           <View key={i} style={styles.photoThumb}>
-            <Image source={{ uri: url }} style={styles.photoImage} />
+            <Image source={{ uri: url }} style={styles.photoImage} resizeMode="cover" />
             <TouchableOpacity style={styles.photoRemove} onPress={() => handleRemovePhoto(i)}>
               <MaterialIcons name="close" size={14} color="#fff" />
             </TouchableOpacity>
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   stepSubtitle: { fontSize: 15, color: '#8e8e93', textAlign: 'center', marginBottom: 24 },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
   photoThumb: { width: 100, height: 100, borderRadius: 12, overflow: 'hidden' },
-  photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photoImage: { width: '100%', height: '100%' },
   photoRemove: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, width: 22, height: 22, justifyContent: 'center', alignItems: 'center' },
   addPhotoButton: { width: 100, height: 100, borderRadius: 12, borderWidth: 2, borderColor: '#f0d0d8', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFAFB' },
   photoHint: { fontSize: 13, color: '#8e8e93', marginTop: 12 },

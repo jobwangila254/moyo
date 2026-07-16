@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   reactionBadgeActive: { backgroundColor: '#FFE5EA', borderColor: '#FF2D55' },
   reactionEmoji: { fontSize: 14 },
   reactionCount: { fontSize: 12, color: '#8e8e93', marginLeft: 4 },
-  reactionPicker: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 24, paddingVertical: 8, paddingHorizontal: 12, marginTop: 4, alignSelf: 'flex-start', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4, gap: 4 },
+  reactionPicker: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 24, paddingVertical: 8, paddingHorizontal: 12, marginTop: 4, alignSelf: 'flex-start', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', elevation: 4, gap: 4 },
   reactionPickerMe: { alignSelf: 'flex-end' },
   reactionPickerThem: { alignSelf: 'flex-start' },
   reactionPickerItem: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
