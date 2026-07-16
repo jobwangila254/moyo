@@ -74,6 +74,12 @@ function pickRandom(arr, min, max) {
 
 async function main() {
   console.log('Cleaning database...');
+  await prisma.messageReaction.deleteMany();
+  await prisma.profileView.deleteMany();
+  await prisma.userEvent.deleteMany();
+  await prisma.userSettings.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.superLikeQueue.deleteMany();
   await prisma.report.deleteMany();
   await prisma.transaction.deleteMany();
   await prisma.message.deleteMany();
@@ -82,7 +88,7 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.county.deleteMany();
 
-  const tables = ['Report', 'Transaction', 'Message', 'Match', 'Swipe', 'User', 'County'];
+  const tables = ['Report', 'Transaction', 'Message', 'Match', 'Swipe', 'User', 'County', 'ProfileView', 'UserEvent', 'UserSettings', 'Subscription', 'SuperLikeQueue', 'MessageReaction'];
   for (const table of tables) {
     try { await prisma.$executeRawUnsafe(`ALTER SEQUENCE "${table}_id_seq" RESTART WITH 1`); } catch {}
   }
@@ -228,7 +234,7 @@ async function main() {
     update: {},
     create: {
       phone: '0700000000',
-      password: adminPassword,
+      passwordHash: adminPassword,
       name: 'Admin Moyo',
       age: 30,
       gender: 'male',
@@ -239,7 +245,6 @@ async function main() {
       tier: 'PREMIUM',
       role: 'ADMIN',
       isActive: true,
-      isVerified: true,
       onboardingComplete: true,
     },
   });

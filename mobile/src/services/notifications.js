@@ -12,6 +12,10 @@ Notifications.setNotificationHandler({
 });
 
 export const registerForPushNotifications = async () => {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
   if (!Device.isDevice) {
     console.log('Push notifications require a physical device');
     return null;
