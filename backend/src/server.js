@@ -39,7 +39,18 @@ const authLimiter = rateLimit({
 });
 
 app.use(hpp());
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'"],
+    },
+  },
+}));
 
 const allowDev = origin => {
   if (!origin) {
@@ -78,8 +89,17 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/admin', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'index.html'));
 });
+app.use('/admin', express.static(path.join(__dirname, '..', 'public', 'admin'), {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+  },
+}));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'landing', 'index.html'));
