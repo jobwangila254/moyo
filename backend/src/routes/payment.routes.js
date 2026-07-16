@@ -5,7 +5,6 @@ const { authenticate } = require('../middleware/auth.middleware');
 const validation = require('../middleware/validation.middleware');
 
 router.post('/stk-push', authenticate, validation.stkPush, paymentController.initiateSTKPush);
-router.post('/card', authenticate, validation.cardPayment, paymentController.processCardPayment);
 router.post('/bulk-stk', authenticate, validation.bulkSTK, paymentController.bulkSTKPush);
 router.get('/status/:transactionId', authenticate, paymentController.getTransactionStatus);
 router.get('/history', authenticate, paymentController.getTransactionHistory);

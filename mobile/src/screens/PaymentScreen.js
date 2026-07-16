@@ -18,10 +18,6 @@ export default function PaymentScreen({ route, navigation }) {
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedPaymentType, setSelectedPaymentType] = useState(matchId ? 'match_unlock' : likerId ? 'like_unlock' : null);
-  const [paymentMethod, setPaymentMethod] = useState('mpesa');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
@@ -109,48 +105,20 @@ export default function PaymentScreen({ route, navigation }) {
       return;
     }
 
-    if (paymentMethod === 'card') {
-      if (cardNumber.replace(/\s/g, '').length < 13) {
-        setStatusMsg('Please enter a valid card number');
-        return;
-      }
-      if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
-        setStatusMsg('Please enter expiry as MM/YY');
-        return;
-      }
-      if (cardCvv.length < 3) {
-        setStatusMsg('Please enter a valid CVV');
-        return;
-      }
-    } else {
-      if (!validatePhoneNumber(phoneNumber)) {
-        setStatusMsg('Please enter a valid phone number (e.g., 0712345678)');
-        return;
-      }
+    if (!validatePhoneNumber(phoneNumber)) {
+      setStatusMsg('Please enter a valid phone number (e.g., 0712345678)');
+      return;
     }
 
     setLoading(true);
     setStatusMsg('');
     setPaymentResult(null);
     try {
-      let res;
-      if (paymentMethod === 'card') {
-        const payload = {
-          type: selectedPaymentType,
-          cardNumber: cardNumber.replace(/\s/g, ''),
-          expiry: cardExpiry,
-          cvv: cardCvv,
-        };
-        if (selectedPaymentType === 'match_unlock' && matchId) { payload.matchId = matchId; }
-        if (selectedPaymentType === 'like_unlock' && likerId) { payload.matchId = likerId; }
-        res = await payments.processCardPayment(payload);
-      } else {
-        const formattedPhone = formatPhoneNumber(phoneNumber);
-        const payload = { phoneNumber: formattedPhone, type: selectedPaymentType };
-        if (selectedPaymentType === 'match_unlock' && matchId) { payload.matchId = matchId; }
-        if (selectedPaymentType === 'like_unlock' && likerId) { payload.matchId = likerId; }
-        res = await payments.initiateSTKPush(payload);
-      }
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      const payload = { phoneNumber: formattedPhone, type: selectedPaymentType };
+      if (selectedPaymentType === 'match_unlock' && matchId) { payload.matchId = matchId; }
+      if (selectedPaymentType === 'like_unlock' && likerId) { payload.matchId = likerId; }
+      const res = await payments.initiateSTKPush(payload);
       setLoading(false);
       const transactionId = res.data?.data?.transactionId;
       if (transactionId) {
@@ -163,23 +131,6 @@ export default function PaymentScreen({ route, navigation }) {
       setStatusMsg(error.response?.data?.error || 'Payment failed. Please try again.');
     }
   };
-
-  const formatCardNumber = (text) => {
-    const cleaned = text.replace(/\D/g, '').slice(0, 16);
-    const formatted = cleaned.replace(/(\d{4})(?=\d)/g, '$1 ');
-    setCardNumber(formatted);
-  };
-
-  const formatExpiry = (text) => {
-    const cleaned = text.replace(/\D/g, '').slice(0, 4);
-    if (cleaned.length >= 3) {
-      setExpiry(cleaned.slice(0, 2) + '/' + cleaned.slice(2));
-    } else {
-      setCardExpiry(cleaned);
-    }
-  };
-
-  const setExpiry = (val) => setCardExpiry(val);
 
   if (paymentResult?.success) {
     return (
@@ -231,51 +182,13 @@ export default function PaymentScreen({ route, navigation }) {
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.label}>Payment Method</Text>
-        <View style={styles.methodRow}>
-          <TouchableOpacity
-            style={[styles.methodBtn, paymentMethod === 'mpesa' && styles.methodBtnActive]}
-            onPress={() => setPaymentMethod('mpesa')}
-          >
-            <MaterialIcons name="phone-android" size={20} color={paymentMethod === 'mpesa' ? '#fff' : '#FF2D55'} />
-            <Text style={[styles.methodBtnText, paymentMethod === 'mpesa' && styles.methodBtnTextActive]}>M-Pesa</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.methodBtn, paymentMethod === 'card' && styles.methodBtnActive]}
-            onPress={() => setPaymentMethod('card')}
-          >
-            <MaterialIcons name="credit-card" size={20} color={paymentMethod === 'card' ? '#fff' : '#FF2D55'} />
-            <Text style={[styles.methodBtnText, paymentMethod === 'card' && styles.methodBtnTextActive]}>Card</Text>
-          </TouchableOpacity>
-        </View>
-
-        {paymentMethod === 'mpesa' ? (
-          <>
-            <Text style={[styles.label, { marginTop: 16 }]}>M-Pesa Number</Text>
-            <View style={styles.inputWrapper}><MaterialIcons name="phone" size={20} color="#FF2D55" style={styles.inputIcon} /><TextInput style={styles.input} placeholder="0712 345 678" placeholderTextColor="#c7c7cc" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" maxLength={12} /></View>
-            <Text style={styles.hint}>Your Safaricom number for M-Pesa</Text>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.label, { marginTop: 16 }]}>Card Number</Text>
-            <View style={styles.inputWrapper}><MaterialIcons name="credit-card" size={20} color="#FF2D55" style={styles.inputIcon} /><TextInput style={styles.input} placeholder="1234 5678 9012 3456" placeholderTextColor="#c7c7cc" value={cardNumber} onChangeText={formatCardNumber} keyboardType="numeric" maxLength={19} /></View>
-            <View style={styles.cardRow}>
-              <View style={styles.cardField}>
-                <Text style={styles.label}>Expiry</Text>
-                <View style={styles.inputWrapper}><TextInput style={[styles.input, { fontSize: 16 }]} placeholder="MM/YY" placeholderTextColor="#c7c7cc" value={cardExpiry} onChangeText={formatExpiry} keyboardType="numeric" maxLength={5} /></View>
-              </View>
-              <View style={styles.cardField}>
-                <Text style={styles.label}>CVV</Text>
-                <View style={styles.inputWrapper}><TextInput style={[styles.input, { fontSize: 16 }]} placeholder="123" placeholderTextColor="#c7c7cc" value={cardCvv} onChangeText={(t) => setCardCvv(t.replace(/\D/g, '').slice(0, 4))} keyboardType="numeric" maxLength={4} secureTextEntry /></View>
-              </View>
-            </View>
-            <Text style={styles.hint}>Simulated card payment - no real charges</Text>
-          </>
-        )}
+        <Text style={[styles.label, { marginTop: 16 }]}>M-Pesa Number</Text>
+        <View style={styles.inputWrapper}><MaterialIcons name="phone" size={20} color="#FF2D55" style={styles.inputIcon} /><TextInput style={styles.input} placeholder="0712 345 678" placeholderTextColor="#c7c7cc" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" maxLength={12} /></View>
+        <Text style={styles.hint}>Your Safaricom number for M-Pesa</Text>
 
         <TouchableOpacity style={[styles.payButton, (!selectedPaymentType || loading || polling) && styles.payButtonDisabled]} onPress={(!selectedPaymentType || loading || polling) ? undefined : handlePayment}>
           {loading ? <ActivityIndicator color="#fff" /> : (
-            <View style={styles.buttonInner}><MaterialIcons name={paymentMethod === 'card' ? 'credit-card' : 'payment'} size={20} color="#fff" /><Text style={styles.payButtonText}>{selectedPaymentType ? `Pay KSh ${availableOptions[selectedPaymentType]?.amount} via ${paymentMethod === 'card' ? 'Card' : 'M-Pesa'}` : 'Select an option'}</Text></View>
+            <View style={styles.buttonInner}><MaterialIcons name="payment" size={20} color="#fff" /><Text style={styles.payButtonText}>{selectedPaymentType ? `Pay KSh ${availableOptions[selectedPaymentType]?.amount} via M-Pesa` : 'Select an option'}</Text></View>
           )}
         </TouchableOpacity>
         {polling && (
@@ -296,7 +209,7 @@ export default function PaymentScreen({ route, navigation }) {
             <Text style={styles.errorText}>{paymentResult.error}</Text>
           </View>
         )}
-        <View style={styles.info}><MaterialIcons name="info" size={16} color="#8e8e93" /><Text style={styles.infoText}>{paymentMethod === 'mpesa' ? "You'll receive an STK push on your phone. Enter your M-Pesa PIN to complete." : 'Card payment is simulated. No real charges will be made.'}</Text></View>
+        <View style={styles.info}><MaterialIcons name="info" size={16} color="#8e8e93" /><Text style={styles.infoText}>You'll receive an STK push on your phone. Enter your M-Pesa PIN to complete.</Text></View>
       </View>
     </ScrollView>
   );

@@ -366,58 +366,6 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
   });
 });
 
-exports.processCardPayment = catchAsync(async (req, res) => {
-  const { type, matchId, cardNumber, expiry, cvv } = req.body;
-
-  if (type === 'match_unlock' && !matchId) {
-    throw new AppError('matchId required for match_unlock', 400);
-  }
-  if (type === 'like_unlock' && !matchId) {
-    throw new AppError('likerId required for like_unlock', 400);
-  }
-
-  const expectedAmount = PRICES[type];
-  if (!expectedAmount) {
-    throw new AppError(`Invalid payment type: ${type}`, 400);
-  }
-
-  const maskedCard = cardNumber.slice(-4).padStart(cardNumber.length, '*');
-
-  const transaction = await prisma.transaction.create({
-    data: {
-      userId: req.userId,
-      type,
-      amount: expectedAmount,
-      matchId: matchId ? parseInt(matchId, 10) : null,
-      status: 'pending',
-      mpesaReceipt: `CARD_${maskedCard}_${Date.now()}`,
-    },
-  });
-
-  logger.info(`[CARD SIMULATION] Card ${maskedCard} payment of Ksh ${expectedAmount} (${type})`);
-
-  setTimeout(async () => {
-    try {
-      await processPayment(transaction, type, matchId, req.userId);
-      logger.info(`[CARD SIMULATION] Transaction ${transaction.id} completed`);
-    } catch (err) {
-      logger.error('Card payment callback error:', err);
-      try {
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: { status: 'failed' },
-        });
-      } catch { /* ignore */ }
-    }
-  }, 2000);
-
-  res.json({
-    success: true,
-    message: 'Card payment processing. You will be notified when complete.',
-    data: { transactionId: transaction.id },
-  });
-});
-
 exports.bulkSTKPush = catchAsync(async (req, res) => {
   const { payments: bulkPayments } = req.body;
 

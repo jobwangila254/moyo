@@ -105,7 +105,6 @@ export const users = {
 
 export const payments = {
   initiateSTKPush: (data) => api.post('/payments/stk-push', data),
-  processCardPayment: (data) => api.post('/payments/card', data),
   bulkSTKPush: (data) => api.post('/payments/bulk-stk', data),
   getStatus: (transactionId) => api.get(`/payments/status/${transactionId}`),
   getHistory: () => api.get('/payments/history'),

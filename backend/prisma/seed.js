@@ -221,8 +221,28 @@ async function main() {
   }
   console.log('  Created messages across match conversations');
 
-  console.log('Making user 1 (James Mwangi) an admin...');
-  await prisma.user.update({ where: { id: 1 }, data: { role: 'ADMIN' } });
+  console.log('Creating dedicated admin user...');
+  const adminPassword = await bcrypt.hash('Admin123!', 12);
+  await prisma.user.upsert({
+    where: { phone: '0700000000' },
+    update: {},
+    create: {
+      phone: '0700000000',
+      password: adminPassword,
+      name: 'Admin Moyo',
+      age: 30,
+      gender: 'male',
+      interestedIn: 'both',
+      countyId: 30,
+      occupation: 'App Administrator',
+      bio: 'Moyo App Administrator',
+      tier: 'PREMIUM',
+      role: 'ADMIN',
+      isActive: true,
+      isVerified: true,
+      onboardingComplete: true,
+    },
+  });
 
   console.log('Seeding reports...');
   const reportReasons = ['Inappropriate photos', 'Fake profile', 'Harassment', 'Spam messages', 'Underage suspicion'];
@@ -262,14 +282,13 @@ async function main() {
   console.log('');
   console.log('✅ Seed complete! 141 users across 47 counties (3 per county)');
   console.log('');
-  console.log('Admin: User 1 (James Mwangi) — role: ADMIN');
+  console.log('Admin: 0700000000 / Admin123! (Admin Moyo)');
   console.log('Credentials for all users: Password123!');
   console.log('Sample logins:');
   for (let i = 0; i < 3; i++) {
     const u = users[i];
     const genderIcon = u.gender === 'male' ? '♂️' : '♀️';
-    const roleTag = u.id === 1 ? ' [ADMIN]' : '';
-    console.log(`  ${u.phone} → ${u.name}${roleTag}, ${COUNTIES[u.countyId - 1]}, ${u.tier} ${genderIcon}`);
+    console.log(`  ${u.phone} → ${u.name}, ${COUNTIES[u.countyId - 1]}, ${u.tier} ${genderIcon}`);
   }
 }
 
