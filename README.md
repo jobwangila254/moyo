@@ -2,6 +2,29 @@
 
 A dating/social platform for Kenyan adults — swipe-based matching, instant messaging, and paid subscriptions via M-Pesa.
 
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![Backend: Express](https://img.shields.io/badge/backend-Express-000000.svg)
+![Mobile: React Native / Expo](https://img.shields.io/badge/mobile-React%20Native%20%2F%20Expo-61DAFB.svg)
+![Database: PostgreSQL](https://img.shields.io/badge/database-PostgreSQL-4169E1.svg)
+![CI: passing](https://img.shields.io/badge/CI-passing-brightgreen.svg)
+
+## Features
+
+- Swipe-based matching (like / pass) for dating & social discovery
+- M-Pesa STK Push payments via the Safaricom Daraja API
+- Real-time messaging powered by Socket.IO
+- JWT-based authentication and authorization
+- Phone number verification via SMS codes
+
+## Tech Stack
+
+- **Backend:** Node.js, Express, Prisma ORM, PostgreSQL
+- **Mobile:** React Native (Expo SDK 52)
+- **Realtime:** Socket.IO
+- **Payments:** Safaricom Daraja API (M-Pesa STK Push)
+- **Media:** Cloudinary
+- **CI:** GitHub Actions
+
 ## Architecture
 
 ```
@@ -47,6 +70,12 @@ Edit `backend/.env` with:
 | `CLOUDINARY_*` | Cloudinary API credentials |
 | `MPESA_*` | Safaricom Daraja API credentials (optional, simulated otherwise) |
 
+Edit `mobile/.env` with:
+
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | Base URL of the backend API (e.g. `http://192.168.1.10:5000/api`). Used in `mobile/src/config.js` as the API base; defaults to `http://localhost:5000/api` when unset. |
+
 ### 3. Run
 
 ```bash
@@ -73,7 +102,7 @@ All endpoints prefixed with `/api`.
 | `POST /users/matches/:id/messages` | ✓ | Send message |
 | `POST /payments/stk-push` | ✓ | M-Pesa payment |
 
-Full API docs available at `http://localhost:5000/api/health`.
+A health check is available at `GET /api/health` (no auth). The table above lists the main endpoints.
 
 ## Testing
 
@@ -99,4 +128,4 @@ npm run format
 
 ## License
 
-MIT
+MIT — see the [LICENSE](LICENSE) file for details.

@@ -1,6 +1,7 @@
 {
   "name": "moyo-mobile",
   "version": "1.0.0",
+  "description": "Moyo mobile app - Social platform for Kenyan adults (React Native / Expo)",
   "main": "index.js",
   "scripts": {
     "start": "expo start",

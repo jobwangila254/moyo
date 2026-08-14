@@ -10,3 +10,6 @@ build/
 next-env.d.ts
 coverage/
 test-results/
+uploads/
+public/mobile/
+*.keystore
